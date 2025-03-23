@@ -8,7 +8,7 @@ import {
   StyleSheet,
 } from "react-native";
 
-export const LoginComponent = () => {
+export const LoginComponent = ({ navigation }: any) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
@@ -40,7 +40,12 @@ export const LoginComponent = () => {
 
         <View style={styles.registerContainer}>
           <Text style={styles.registerText}>Don't have an account?</Text>
-          <Text style={styles.registerLink}>Register here</Text>
+          <Text
+            style={styles.registerLink}
+            onPress={() => navigation.navigate("Register")}
+          >
+            Register here
+          </Text>
         </View>
       </View>
     </SafeAreaView>

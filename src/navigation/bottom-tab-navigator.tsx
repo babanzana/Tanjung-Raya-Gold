@@ -9,6 +9,12 @@ import { RouteProp } from "@react-navigation/native";
 // Buat stack navigator untuk home
 import { createStackNavigator } from "@react-navigation/stack";
 import { ProductDetailContainer } from "../features/home/detail-product/detail-product.container";
+import { CheckoutContainer } from "../features/cart/checkout/checkout.container";
+import { TransactionHistoryContainer } from "../features/profile/transaction-history/transaction-history.container";
+import { WishlistContainer } from "../features/profile/wishlist/wishlist.container";
+import { FAQContainer } from "../features/profile/faq/faq.container";
+import { AboutContainer } from "../features/profile/about/about.container";
+import { ProfileDetailContainer } from "../features/profile/profile-detail/profile-detail.container";
 
 type TabParamList = {
   HomeStack: undefined; // Ubah menjadi stack navigator
@@ -24,16 +30,72 @@ type TabBarIconProps = {
 const Tab = createMaterialBottomTabNavigator<TabParamList>();
 
 const HomeStack = createStackNavigator();
+const CartStack = createStackNavigator();
+const ProfileStack = createStackNavigator();
 
 const HomeStackNavigator = () => (
-  <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+  <HomeStack.Navigator screenOptions={{ headerShown: true }}>
     <HomeStack.Screen
       name="Home"
       component={HomeScreen}
-      options={{ headerShown: true }}
+      options={{ title: "Tanjung Raya Gold" }}
     />
-    <HomeStack.Screen name="ProductDetail" component={ProductDetailContainer} />
+    <HomeStack.Screen
+      name="ProductDetail"
+      component={ProductDetailContainer}
+      options={{ title: "Product Detail" }}
+    />
   </HomeStack.Navigator>
+);
+
+const CartStackNavigator = () => (
+  <CartStack.Navigator screenOptions={{ headerShown: true }}>
+    <CartStack.Screen
+      name="Cart"
+      component={CartContainer}
+      options={{ title: "Cart" }}
+    />
+    <CartStack.Screen
+      name="Checkout"
+      component={CheckoutContainer}
+      options={{ title: "Checkout" }}
+    />
+  </CartStack.Navigator>
+);
+
+const ProfileStackNavigator = () => (
+  <ProfileStack.Navigator screenOptions={{ headerShown: true }}>
+    <ProfileStack.Screen
+      name="Profile"
+      component={ProfileContainer}
+      options={{ title: "Profile" }}
+    />
+    <ProfileStack.Screen
+      name="ProfileDetail"
+      component={ProfileDetailContainer}
+      options={{ title: "Profile Detail" }}
+    />
+    <CartStack.Screen
+      name="TransactionHistory"
+      component={TransactionHistoryContainer}
+      options={{ title: "Transaction History" }}
+    />
+    <CartStack.Screen
+      name="Wishlist"
+      component={WishlistContainer}
+      options={{ title: "Wishlist" }}
+    />
+    <CartStack.Screen
+      name="FAQ"
+      component={FAQContainer}
+      options={{ title: "FAQ" }}
+    />
+    <CartStack.Screen
+      name="About"
+      component={AboutContainer}
+      options={{ title: "About" }}
+    />
+  </ProfileStack.Navigator>
 );
 
 export const BottomTabNavigator = () => {
@@ -41,9 +103,9 @@ export const BottomTabNavigator = () => {
     switch (routeName) {
       case "HomeStack":
         return "home-outline";
-      case "Cart":
+      case "CartStack":
         return "cart-outline";
-      case "Profile":
+      case "ProfileStack":
         return "person-outline";
       default:
         return "home-outline";
@@ -68,15 +130,15 @@ export const BottomTabNavigator = () => {
         }}
       />
       <Tab.Screen
-        name="Cart"
-        component={CartContainer}
+        name="CartStack"
+        component={CartStackNavigator}
         options={{
           tabBarLabel: "Cart",
         }}
       />
       <Tab.Screen
-        name="Profile"
-        component={ProfileContainer}
+        name="ProfileStack"
+        component={ProfileStackNavigator}
         options={{
           tabBarLabel: "Profile",
         }}

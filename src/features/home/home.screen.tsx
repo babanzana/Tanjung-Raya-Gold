@@ -20,7 +20,8 @@ const goldProducts = [
     price: 985000,
     stock: 15,
     rating: 4.8,
-    image: "https://via.placeholder.com/150/FFD700/000000?text=Emas+1Gram",
+    image:
+      "https://www.logammulia.com/uploads/ngc_master_item/5cdcae8ad46b6_20190516072754-2.jpg",
     description:
       "Emas batangan murni 24 karat dengan berat 1 gram. Produk resmi dari PT Antam.",
   },
@@ -31,7 +32,8 @@ const goldProducts = [
     price: 4925000,
     stock: 8,
     rating: 4.9,
-    image: "https://via.placeholder.com/150/FFD700/000000?text=Emas+5Gram",
+    image:
+      "https://id-test-11.slatic.net/p/1b54e51d9dd5f7e02d6567192bc0f19e.jpg",
     description:
       "Emas batangan murni 24 karat dengan berat 5 gram. Dilengkapi sertifikat keaslian.",
   },
@@ -42,7 +44,8 @@ const goldProducts = [
     price: 9850000,
     stock: 5,
     rating: 5.0,
-    image: "https://via.placeholder.com/150/FFD700/000000?text=Emas+10Gram",
+    image:
+      "https://www.static-src.com/wcsstore/Indraprastha/images/catalog/full//108/MTA-7797816/antam_logam_mulia_10_gram_-_lm_antam_-_emas_batangan_kepingan_10_gram_full04_ljmxa0kq.jpg",
     description:
       "Emas batangan ukuran 10 gram dengan kemasan eksklusif. Cocok untuk investasi jangka panjang.",
   },
@@ -53,7 +56,8 @@ const goldProducts = [
     price: 3500000,
     stock: 12,
     rating: 4.5,
-    image: "https://via.placeholder.com/150/FFD700/000000?text=Kalung+Emas",
+    image:
+      "https://images.tokopedia.net/img/cache/500-square/VqbcmM/2023/1/3/b7696a69-2c1d-4ce2-919e-a58f6d1594de.jpg",
     description: "Kalung emas 18 karat dengan desain modern dan elegan.",
   },
   {
@@ -63,7 +67,8 @@ const goldProducts = [
     price: 2500000,
     stock: 20,
     rating: 4.3,
-    image: "https://via.placeholder.com/150/FFD700/000000?text=Cincin+Emas",
+    image:
+      "https://ae01.alicdn.com/kf/S4fd67873da7642e1a64984397b4091a9r.jpg_640x640q90.jpg",
     description:
       "Cincin emas timbang dengan berbagai ukuran tersedia. Bisa custom desain.",
   },
@@ -74,7 +79,7 @@ const goldProducts = [
     price: 4200000,
     stock: 7,
     rating: 4.7,
-    image: "https://via.placeholder.com/150/FFD700/000000?text=Gelang+Emas",
+    image: "https://ae01.alicdn.com/kf/Se091cd8131e2478d8458ac482c4f596aU.jpg",
     description:
       "Gelang emas 22 karat dengan ukiran tradisional. Berat sekitar 8 gram.",
   },
@@ -85,39 +90,43 @@ const goldProducts = [
     price: 1800000,
     stock: 14,
     rating: 4.2,
-    image: "https://via.placeholder.com/150/FFD700/000000?text=Liontin+Emas",
+    image:
+      "https://tokoperhiasan.co.id/assets/front/images/product/thumb/Liontin-emas-bentuk-hati-aksen-segtiga-mata-cubic-zirconia.webp",
     description:
       "Liontin emas dengan pilihan motif yang beragam. Berat sekitar 3 gram.",
   },
   {
     id: 8,
-    name: "Emas Koin 1/2 Gram",
+    name: "Emas Koin 0.2 Gram",
     category: "Koin",
     price: 500000,
     stock: 25,
     rating: 4.6,
-    image: "https://via.placeholder.com/150/FFD700/000000?text=Koin+Emas",
+    image:
+      "https://www.static-src.com/wcsstore/Indraprastha/images/catalog/full//catalog-image/108/MTA-150699626/idn_bulion_citraperkasa_idn_bulion_angpao_naga_koin_emas_logam_mulia_-0-2_g_-_24k_-_999-9_gold-_full09_isgvag1j.jpg",
     description: "Koin emas setengah gram dengan gambar khusus edisi terbatas.",
   },
   {
     id: 9,
-    name: "Emas Koin 1 Gram",
+    name: "Emas Koin 0.5 Gram",
     category: "Koin",
     price: 990000,
     stock: 18,
     rating: 4.7,
-    image: "https://via.placeholder.com/150/FFD700/000000?text=Koin+1Gram",
+    image:
+      "https://images.tokopedia.net/img/cache/700/VqbcmM/2021/2/13/04829d0c-a545-40c7-a88d-7f688b136c51.jpg",
     description:
       "Koin emas 1 gram dengan kemasan eksklusif. Nilai investasi yang stabil.",
   },
   {
     id: 10,
-    name: "Emas Koin 2.5 Gram",
+    name: "Emas Koin 2 Gram",
     category: "Koin",
     price: 2475000,
     stock: 9,
     rating: 4.9,
-    image: "https://via.placeholder.com/150/FFD700/000000?text=Koin+2.5Gram",
+    image:
+      "https://www.static-src.com/wcsstore/Indraprastha/images/catalog/full//104/MTA-8727917/annacraft_annacraft_idn_monas_koin_emas_logam_mulia_-2-0_g_-_999-9-_fine_gold-_jabodetabek_full01_kh5h1dux.jpg",
     description:
       "Koin emas 2.5 gram dengan sertifikat keaslian. Cocok untuk hadiah.",
   },
@@ -251,6 +260,12 @@ const styles = StyleSheet.create({
     flex: 1,
     margin: 5,
     backgroundColor: "#f9f9f9",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    padding: 10,
     borderRadius: 10,
     overflow: "hidden",
     maxWidth: "48%",

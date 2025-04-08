@@ -30,7 +30,7 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [appIsReady, setAppIsReady] = useState(false);
 
   useEffect(() => {

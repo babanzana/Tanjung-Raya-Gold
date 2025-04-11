@@ -9,6 +9,7 @@ import { LoginContainer } from "./src/features/login/login.container";
 import { RegisterContainer } from "./src/features/register/register.container";
 import { BottomTabNavigator } from "./src/navigation/bottom-tab-navigator";
 import { View, Text } from "react-native";
+import { AdminTabNavigator } from "./src/navigation/admin-tab-navigator";
 
 const Stack = createStackNavigator();
 
@@ -30,7 +31,7 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(true);
   const [appIsReady, setAppIsReady] = useState(false);
 
   useEffect(() => {
@@ -56,9 +57,14 @@ export default function App() {
         <NavigationContainer>
           <Stack.Navigator>
             {isLoggedIn ? (
+              // <Stack.Screen
+              //   name="MainApp"
+              //   component={BottomTabNavigator}
+              //   options={{ headerShown: false }}
+              // />
               <Stack.Screen
                 name="MainApp"
-                component={BottomTabNavigator}
+                component={AdminTabNavigator}
                 options={{ headerShown: false }}
               />
             ) : (

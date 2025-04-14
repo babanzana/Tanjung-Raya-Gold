@@ -360,3 +360,119 @@ export const DUMMY_WHISHLIST = [
       "https://images.tokopedia.net/img/cache/700/VqbcmM/2021/2/13/04829d0c-a545-40c7-a88d-7f688b136c51.jpg",
   },
 ];
+
+// ====
+
+// export const DUMMY_TRANSACTION = [
+//   {
+//     id: 1,
+//     tanggal: "2025-04-10T12:00:00Z",
+//     nama: "John Doe",
+//     alamat: "Jl. Merdeka No. 12, Jakarta",
+//     items: [
+//       {
+//         id: 1,
+//         nama: "Emas Batangan 1 Gram",
+//         harga: 985000,
+//         qty: 2,
+//         totalHarga: 1970000,
+//         image:
+//           "https://www.logammulia.com/uploads/ngc_master_item/5cdcae8ad46b6_20190516072754-2.jpg",
+//       },
+//       {
+//         id: 4,
+//         nama: "Kalung Emas 18K",
+//         harga: 3500000,
+//         qty: 1,
+//         totalHarga: 3500000,
+//         image:
+//           "https://images.tokopedia.net/img/cache/500-square/VqbcmM/2023/1/3/b7696a69-2c1d-4ce2-919e-a58f6d1594de.jpg",
+//       },
+//     ],
+//     total: 5470000,
+//     status: "Selesai",
+//     metodePembayaran: "Transfer Bank",
+//     buktiPembayaran: "https://example.com/bukti1.jpg",
+//   },
+//   {
+//     id: 2,
+//     tanggal: "2025-04-11T15:30:00Z",
+//     nama: "Jane Smith",
+//     alamat: "Jl. Sudirman Kav. 21, Jakarta",
+//     items: [
+//       {
+//         id: 2,
+//         nama: "Emas Batangan 5 Gram",
+//         harga: 4925000,
+//         qty: 1,
+//         totalHarga: 4925000,
+//         image:
+//           "https://id-test-11.slatic.net/p/1b54e51d9dd5f7e02d6567192bc0f19e.jpg",
+//       },
+//       {
+//         id: 6,
+//         nama: "Gelang Emas 22K",
+//         harga: 4200000,
+//         qty: 1,
+//         totalHarga: 4200000,
+//         image:
+//           "https://ae01.alicdn.com/kf/Se091cd8131e2478d8458ac482c4f596aU.jpg",
+//       },
+//     ],
+//     total: 9125000,
+//     status: "Proses",
+//     metodePembayaran: "Kartu Kredit",
+//     buktiPembayaran: "https://example.com/bukti2.jpg",
+//   },
+//   {
+//     id: 3,
+//     tanggal: "2025-04-12T10:45:00Z",
+//     nama: "Michael Johnson",
+//     alamat: "Jl. Thamrin No. 8, Jakarta",
+//     items: [
+//       {
+//         id: 8,
+//         nama: "Emas Koin 0.2 Gram",
+//         harga: 500000,
+//         qty: 5,
+//         totalHarga: 2500000,
+//         image:
+//           "https://www.static-src.com/wcsstore/Indraprastha/images/catalog/full//catalog-image/108/MTA-150699626/idn_bulion_citraperkasa_idn_bulion_angpao_naga_koin_emas_logam_mulia_-0-2_g_-_24k_-_999-9_gold-_full09_isgvag1j.jpg",
+//       },
+//     ],
+//     total: 2500000,
+//     status: "Dibatalkan",
+//     metodePembayaran: "Tunai",
+//     buktiPembayaran: "https://example.com/bukti3.jpg",
+//   },
+//   {
+//     id: 4,
+//     tanggal: "2025-04-13T14:00:00Z",
+//     nama: "Alice Williams",
+//     alamat: "Jl. Gatot Subroto No. 27, Jakarta",
+//     items: [
+//       {
+//         id: 9,
+//         nama: "Emas Koin 0.5 Gram",
+//         harga: 990000,
+//         qty: 3,
+//         totalHarga: 2970000,
+//         image:
+//           "https://images.tokopedia.net/img/cache/700/VqbcmM/2021/2/13/04829d0c-a545-40c7-a88d-7f688b136c51.jpg",
+//       },
+//       {
+//         id: 7,
+//         nama: "Liontin Emas",
+//         harga: 1800000,
+//         qty: 2,
+//         totalHarga: 3600000,
+//         image:
+//           "https://tokoperhiasan.co.id/assets/front/images/product/thumb/Liontin-emas-bentuk-hati-aksen-segtiga-mata-cubic-zirconia.webp",
+//       },
+//     ],
+//     total: 6570000,
+//     status: "Menunggu Pembayaran",
+//     metodePembayaran: "Kartu Debit",
+//     buktiPembayaran: "https://example.com/bukti4.jpg",
+//   },
+// ];

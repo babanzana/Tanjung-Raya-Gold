@@ -4,6 +4,10 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { View, Text, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { AdminLayoutContainer } from "../features/admin/admin-screen/admin-layout/admin-layout.container";
+import { AdminProductContainer } from "../features/admin/admin-screen/admin-product/admin-product.container";
+import { AdminProductDetailContainer } from "../features/admin/admin-screen/admin-product-detail/admin-product-detail.container";
+import { AdminCustomersContainer } from "../features/admin/admin-screen/admin-customers/admin-customers.container";
+import { AdminCustomersDetailContainer } from "../features/admin/admin-screen/admin-customers-edit/admin-customers-detail.container";
 
 // 1. Screen Components
 function DashboardScreen() {
@@ -18,14 +22,6 @@ function TransactionsScreen() {
   return (
     <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
       <Text>Transactions</Text>
-    </View>
-  );
-}
-
-function ProductsScreen() {
-  return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <Text>Products</Text>
     </View>
   );
 }
@@ -61,12 +57,34 @@ function LogoutScreen() {
 
 // 2. Admin Stack Navigator
 const AdminStack = createStackNavigator();
+const AdminProductStack = createStackNavigator();
 function AdminStackScreen() {
   return (
     <AdminStack.Navigator screenOptions={{ headerShown: true }}>
-      <AdminStack.Screen name="Customers" component={AdminLayoutContainer} />
+      <AdminStack.Screen name="Admin" component={AdminLayoutContainer} />
+      <AdminStack.Screen name="Customers" component={AdminCustomersContainer} />
+      <AdminStack.Screen
+        name="EditCustomer"
+        component={AdminCustomersDetailContainer}
+      />
       <AdminStack.Screen name="Reports" component={ReportsScreen} />
       <AdminStack.Screen name="Logout" component={LogoutScreen} />
+    </AdminStack.Navigator>
+  );
+}
+
+function AdminProductScreen() {
+  return (
+    <AdminStack.Navigator screenOptions={{ headerShown: true }}>
+      <AdminStack.Screen
+        name="AdminProducts"
+        component={AdminProductContainer}
+      />
+      <AdminStack.Screen
+        name="AdminProductEdit"
+        component={AdminProductDetailContainer}
+        options={{ title: "Edit Product" }}
+      />
     </AdminStack.Navigator>
   );
 }
@@ -109,7 +127,7 @@ export function AdminTabNavigator() {
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Transactions" component={TransactionsScreen} />
-      <Tab.Screen name="Products" component={ProductsScreen} />
+      <Tab.Screen name="Products" component={AdminProductScreen} />
       <Tab.Screen name="Admin" component={AdminStackScreen} />
     </Tab.Navigator>
   );

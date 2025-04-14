@@ -57,16 +57,16 @@ export default function App() {
         <NavigationContainer>
           <Stack.Navigator>
             {isLoggedIn ? (
-              // <Stack.Screen
-              //   name="MainApp"
-              //   component={BottomTabNavigator}
-              //   options={{ headerShown: false }}
-              // />
               <Stack.Screen
                 name="MainApp"
-                component={AdminTabNavigator}
+                component={BottomTabNavigator}
                 options={{ headerShown: false }}
               />
+              // <Stack.Screen
+              //   name="MainApp"
+              //   component={AdminTabNavigator}
+              //   options={{ headerShown: false }}
+              // />
             ) : (
               <>
                 <Stack.Screen

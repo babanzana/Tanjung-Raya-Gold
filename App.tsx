@@ -8,32 +8,35 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { LoginContainer } from "./src/features/login/login.container";
 import { RegisterContainer } from "./src/features/register/register.container";
 import { BottomTabNavigator } from "./src/navigation/bottom-tab-navigator";
-import { View, Text } from "react-native";
 import { AdminTabNavigator } from "./src/navigation/admin-tab-navigator";
+import { ErrorBoundary } from "./src/component/error-boundary/error-boundary.component";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./firebase";
 
 const Stack = createStackNavigator();
 
 SplashScreen.preventAutoHideAsync();
 
-function ErrorBoundary({ children }: { children: React.ReactNode }) {
-  const [hasError, setHasError] = useState(false);
-
-  try {
-    return <>{children}</>;
-  } catch (error) {
-    setHasError(true);
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text>Something went wrong</Text>
-      </View>
-    );
-  }
-}
-
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [appIsReady, setAppIsReady] = useState(false);
+  const [initializing, setInitializing] = useState(true);
 
+  // Handle auth state changes
+  useEffect(() => {
+    const authSubscriber = onAuthStateChanged(auth, (user) => {
+      setIsLoggedIn(!!user);
+      // Contoh sederhana untuk menentukan admin (sesuaikan dengan kebutuhan Anda)
+      setIsAdmin(user?.email === "gagabelalang1001@gmail.com");
+
+      if (initializing) setInitializing(false);
+    });
+
+    return authSubscriber; // Unsubscribe on unmount
+  }, [initializing]);
+
+  // Prepare app (splash screen)
   useEffect(() => {
     const prepare = async () => {
       try {
@@ -47,7 +50,7 @@ export default function App() {
     prepare();
   }, []);
 
-  if (!appIsReady) {
+  if (!appIsReady || initializing) {
     return null;
   }
 
@@ -57,24 +60,35 @@ export default function App() {
         <NavigationContainer>
           <Stack.Navigator>
             {isLoggedIn ? (
-              <Stack.Screen
-                name="MainApp"
-                component={BottomTabNavigator}
-                options={{ headerShown: false }}
-              />
-              // <Stack.Screen
-              //   name="MainApp"
-              //   component={AdminTabNavigator}
-              //   options={{ headerShown: false }}
-              // />
+              isAdmin ? (
+                <Stack.Screen
+                  name="AdminApp"
+                  component={AdminTabNavigator}
+                  options={{ headerShown: false }}
+                />
+              ) : (
+                <Stack.Screen
+                  name="MainApp"
+                  component={BottomTabNavigator}
+                  options={{ headerShown: false }}
+                />
+              )
             ) : (
               <>
                 <Stack.Screen
                   name="Login"
                   component={LoginContainer}
-                  options={{ title: "Tanjung Raya Gold" }}
+                  options={{
+                    title: "Tanjung Raya Gold",
+                    headerLeft: () => null, // Menghilangkan back button
+                    gestureEnabled: false, // Menonaktifkan swipe back
+                  }}
                 />
-                <Stack.Screen name="Register" component={RegisterContainer} />
+                <Stack.Screen
+                  name="Register"
+                  component={RegisterContainer}
+                  options={{ title: "Register" }}
+                />
               </>
             )}
           </Stack.Navigator>

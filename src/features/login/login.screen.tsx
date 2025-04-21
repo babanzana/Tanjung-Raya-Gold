@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   SafeAreaView,
   Text,
@@ -8,64 +8,77 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from "react-native";
+import {
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+} from "firebase/auth";
+import { loginUser, resetPassword } from "../../../firebase";
+// import { auth } from "../../../firebase";
 
 export const LoginComponent = ({ navigation }: any) => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [email, setEmail] = useState(""); // Tambahkan state untuk email
-  const [showForgotPassword, setShowForgotPassword] = useState(false); // Toggle form lupa password
+  const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [isMounted, setIsMounted] = useState(true);
 
-  const handleLogin = () => {
-    // Validasi input tidak boleh kosong
-    if (!username.trim() || !password.trim()) {
-      Alert.alert("Error", "Username dan password harus diisi");
+  useEffect(() => {
+    return () => setIsMounted(false);
+  }, []);
+
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert("Error", "Email and password must be filled");
       return;
     }
 
-    // Daftar user valid (ini hanya contoh, di real app gunakan backend/auth service)
-    const validUsers = [
-      { username: "tanjungraya@gmail.com", password: "tanjung123" },
-      { username: "admintanjung@gmail.com", password: "admin123" },
-    ];
+    setLoading(true);
+    try {
+      const result = await loginUser(email, password);
+      console.log("🚀 ~ handleLogin ~ result:", result);
+      if (!isMounted) return;
 
-    // Cari user yang sesuai
-    const user = validUsers.find(
-      (u) => u.username === username.trim() && u.password === password.trim()
-    );
-
-    if (user) {
-      // Login berhasil
-      Alert.alert("Success", "Login berhasil!");
-      // Contoh: navigation.navigate('Home') untuk pindah ke halaman berikutnya
-    } else {
-      // Login gagal
-      Alert.alert(
-        "Error",
-        "Username atau password salah",
-        [{ text: "OK", onPress: () => setPassword("") }] // Reset password field
-      );
-      setPassword(""); // Clear password field
+      if (!result.success) {
+        Alert.alert("Error", result.error);
+        setPassword("");
+      }
+    } catch (error) {
+      if (!isMounted) return;
+      Alert.alert("Error", "An unexpected error occurred. Please try again.");
+    } finally {
+      if (isMounted) setLoading(false);
     }
   };
 
-  const handleForgotPassword = () => {
-    // Validasi email sederhana
+  const handleForgotPassword = async () => {
     if (!email.includes("@") || !email.includes(".")) {
-      Alert.alert("Error", "Masukkan email yang valid");
+      Alert.alert("Error", "Please enter a valid email");
       return;
     }
 
-    // Logika kirim email reset password
-    console.log(`Email reset password dikirim ke: ${email}`);
-    Alert.alert(
-      "Email Terkirim",
-      `Instruksi reset password telah dikirim ke ${email}`
-    );
-    setShowForgotPassword(false);
-    setEmail("");
-  };
+    setLoading(true);
+    try {
+      const result = await resetPassword(email);
+      if (!isMounted) return;
 
+      if (result.success) {
+        Alert.alert(
+          "Email Sent",
+          `Password reset instructions have been sent to ${email}`
+        );
+        setShowForgotPassword(false);
+      } else {
+        Alert.alert("Error", result.error);
+      }
+    } catch (error) {
+      if (!isMounted) return;
+      Alert.alert("Error", "Failed to send reset email. Please try again.");
+    } finally {
+      if (isMounted) setLoading(false);
+    }
+  };
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.form}>
@@ -75,9 +88,11 @@ export const LoginComponent = ({ navigation }: any) => {
           <>
             <TextInput
               style={styles.input}
-              placeholder="Username"
-              value={username}
-              onChangeText={setUsername}
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
             />
 
             <TextInput
@@ -92,16 +107,20 @@ export const LoginComponent = ({ navigation }: any) => {
               onPress={() => setShowForgotPassword(true)}
               style={styles.forgotPasswordLink}
             >
-              <Text style={styles.linkText}>Lupa Password?</Text>
+              <Text style={styles.linkText}>Forgot Password?</Text>
             </TouchableOpacity>
 
-            <Button title="Login" onPress={handleLogin} />
+            {loading ? (
+              <ActivityIndicator size="large" color="#0000ff" />
+            ) : (
+              <Button title="Login" onPress={handleLogin} />
+            )}
           </>
         ) : (
           <>
             <Text style={styles.subHeader}>Reset Password</Text>
             <Text style={styles.instruction}>
-              Masukkan email Anda untuk menerima instruksi reset password
+              Enter your email to receive password reset instructions
             </Text>
 
             <TextInput
@@ -114,28 +133,31 @@ export const LoginComponent = ({ navigation }: any) => {
             />
 
             <View style={styles.buttonGroup}>
-              <Button
-                title="Kirim Instruksi"
-                onPress={handleForgotPassword}
-                color="#007BFF"
-              />
-              <Button
-                title="Kembali ke Login"
-                onPress={() => setShowForgotPassword(false)}
-                color="#999"
-              />
+              {loading ? (
+                <ActivityIndicator size="large" color="#0000ff" />
+              ) : (
+                <>
+                  <Button
+                    title="Send Instructions"
+                    onPress={handleForgotPassword}
+                    color="#007BFF"
+                  />
+                  <Button
+                    title="Back to Login"
+                    onPress={() => setShowForgotPassword(false)}
+                    color="#999"
+                  />
+                </>
+              )}
             </View>
           </>
         )}
 
         <View style={styles.registerContainer}>
           <Text style={styles.registerText}>Don't have an account?</Text>
-          <Text
-            style={styles.registerLink}
-            onPress={() => navigation.navigate("Register")}
-          >
-            Register here
-          </Text>
+          <TouchableOpacity onPress={() => navigation.navigate("Register")}>
+            <Text style={styles.registerLink}>Register here</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>

@@ -7,6 +7,7 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { logoutUser } from "../../../../../firebase";
 
 export const AdminLayoutScreen = ({ navigation }: any) => {
   const menuItems = [
@@ -32,7 +33,7 @@ export const AdminLayoutScreen = ({ navigation }: any) => {
           "Yakin ingin keluar dari akun admin?",
           [
             { text: "Batal", style: "cancel" },
-            { text: "Keluar", onPress: () => navigation.replace("Login") },
+            { text: "Keluar", onPress: () => logoutUser() },
           ]
         ),
     },

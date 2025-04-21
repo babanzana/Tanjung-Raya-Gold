@@ -9,6 +9,7 @@ import {
   Alert,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { logoutUser } from "../../../firebase";
 
 interface User {
   name: string;
@@ -157,12 +158,8 @@ export const ProfileScreen = ({ route, navigation }: any) => {
           text: "Logout",
           style: "destructive",
           onPress: () => {
-            // Handle logout logic here
             console.log("User logged out");
-            // navigation.reset({
-            //   index: 0,
-            //   routes: [{ name: "Login" }],
-            // });
+            logoutUser();
           },
         },
       ],

@@ -38,7 +38,7 @@ const HomeStackNavigator = () => (
     <HomeStack.Screen
       name="Home"
       component={HomeScreen}
-      options={{ title: "Tanjung Raya Gold" }}
+      options={{ headerShown: true, title: "Tanjung Raya Gold" }}
     />
     <HomeStack.Screen
       name="ProductDetail"

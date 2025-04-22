@@ -11,7 +11,6 @@ import {
   Card,
   Button,
   Modal,
-  Portal,
   PaperProvider,
   Menu,
   Divider,
@@ -32,6 +31,7 @@ interface Transaction {
   id: number;
   tanggal: string;
   nama: string;
+  alamat: any;
   items: TransactionItem[];
   total: number;
   status: any;
@@ -57,7 +57,6 @@ export const AdminTransactionsScreen = () => {
 
   const showImageModal = () => {
     setImageVisible(true);
-    setMenuVisible(false);
   };
 
   const hideImageModal = () => setImageVisible(false);
@@ -90,7 +89,6 @@ export const AdminTransactionsScreen = () => {
 
     setTransactions(updatedTransactions);
     setSelectedTransaction({ ...selectedTransaction, status: newStatus });
-    setMenuVisible(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -152,174 +150,200 @@ export const AdminTransactionsScreen = () => {
         ))}
       </ScrollView>
 
-      {/* Modal Detail Transaksi */}
-      <Portal>
-        <Modal
-          visible={detailVisible}
-          onDismiss={hideDetailModal}
-          contentContainerStyle={styles.modalContainer}
-        >
-          {selectedTransaction && (
-            <Card style={styles.modalCard}>
-              <Card.Title
-                title={`Transaksi #${selectedTransaction.id}`}
-                titleStyle={styles.modalTitle}
-                subtitle={`Oleh: ${selectedTransaction.nama}`}
-                subtitleStyle={styles.modalSubtitle}
-              />
-              <ScrollView style={styles.modalScrollView}>
-                <Card.Content style={styles.modalContent}>
-                  <View style={styles.detailSection}>
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Tanggal:</Text>
-                      <Text style={styles.detailValue}>
-                        {formatDate(selectedTransaction.tanggal)}
-                      </Text>
-                    </View>
+      <Modal
+        visible={detailVisible}
+        onDismiss={hideDetailModal}
+        contentContainerStyle={styles.modalContainer}
+      >
+        {selectedTransaction && (
+          <Card style={styles.modalCard}>
+            <Card.Title
+              title={`Transaksi #${selectedTransaction.id}`}
+              titleStyle={styles.modalTitle}
+              subtitle={`Oleh: ${selectedTransaction.nama}`}
+              subtitleStyle={styles.modalSubtitle}
+            />
+            <ScrollView style={styles.modalScrollView}>
+              <Card.Content style={styles.modalContent}>
+                <View style={styles.detailSection}>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Tanggal:</Text>
+                    <Text style={styles.detailValue}>
+                      {formatDate(selectedTransaction.tanggal)}
+                    </Text>
+                  </View>
 
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Status:</Text>
-                      <View style={styles.statusBadge}>
-                        <Text
-                          style={[
-                            styles.statusText,
-                            { color: getStatusColor(selectedTransaction.status) },
-                          ]}
-                        >
-                          {selectedTransaction.status}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Metode Pembayaran:</Text>
-                      <Text style={styles.detailValue}>
-                        {selectedTransaction.metodePembayaran}
-                      </Text>
-                    </View>
-
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Total:</Text>
-                      <Text style={[styles.detailValue, styles.totalAmount]}>
-                        {formatCurrency(selectedTransaction.total)}
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Status:</Text>
+                    <View style={styles.statusBadge}>
+                      <Text
+                        style={[
+                          styles.statusText,
+                          {
+                            color: getStatusColor(selectedTransaction.status),
+                          },
+                        ]}
+                      >
+                        {selectedTransaction.status}
                       </Text>
                     </View>
                   </View>
 
-                  <Divider style={styles.divider} />
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Alamat:</Text>
+                    <Text style={styles.detailValue}>
+                      {selectedTransaction.alamat
+                        ? selectedTransaction.alamat
+                        : "Alamat tidak tersedia"}
+                    </Text>
+                  </View>
 
-                  <Text style={styles.sectionHeader}>Items:</Text>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Metode Pembayaran:</Text>
+                    <Text style={styles.detailValue}>
+                      {selectedTransaction.metodePembayaran}
+                    </Text>
+                  </View>
 
-                  {selectedTransaction.items.map((item) => (
-                    <View key={item.id} style={styles.itemCard}>
-                      <Image
-                        source={{ uri: item.image }}
-                        style={styles.itemImage}
-                      />
-                      <View style={styles.itemInfo}>
-                        <Text style={styles.itemName}>{item.nama}</Text>
-                        <View style={styles.itemPriceRow}>
-                          <Text style={styles.itemPrice}>
-                            {item.qty} × {formatCurrency(item.harga)}
-                          </Text>
-                          <Text style={styles.itemTotal}>
-                            {formatCurrency(item.totalHarga)}
-                          </Text>
-                        </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Total:</Text>
+                    <Text style={[styles.detailValue, styles.totalAmount]}>
+                      {formatCurrency(selectedTransaction.total)}
+                    </Text>
+                  </View>
+                </View>
+
+                <Divider style={styles.divider} />
+
+                <Text style={styles.sectionHeader}>Items:</Text>
+
+                {selectedTransaction.items.map((item) => (
+                  <View key={item.id} style={styles.itemCard}>
+                    <Image
+                      source={{ uri: item.image }}
+                      style={styles.itemImage}
+                    />
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemName}>{item.nama}</Text>
+                      <View style={styles.itemPriceRow}>
+                        <Text style={styles.itemPrice}>
+                          {item.qty} × {formatCurrency(item.harga)}
+                        </Text>
+                        <Text style={styles.itemTotal}>
+                          {formatCurrency(item.totalHarga)}
+                        </Text>
                       </View>
                     </View>
-                  ))}
-                </Card.Content>
-              </ScrollView>
-              <Card.Actions style={styles.actionButtons}>
-                <Button
-                  mode="outlined"
-                  onPress={hideDetailModal}
-                  style={styles.closeButton}
-                >
-                  Tutup
-                </Button>
-
-                {selectedTransaction.buktiPembayaran && (
-                  <Menu
-                    visible={menuVisible}
-                    onDismiss={() => setMenuVisible(false)}
-                    anchor={
-                      <Button
-                        mode="contained"
-                        icon="file-image"
-                        onPress={() => setMenuVisible(true)}
-                        style={styles.actionButton}
-                      >
-                        Aksi
-                      </Button>
-                    }
-                    contentStyle={styles.menuContent}
-                  >
-                    <Menu.Item
-                      leadingIcon="image"
-                      onPress={showImageModal}
-                      title="Lihat Bukti"
-                    />
-                    <Divider />
-                    <Menu.Item
-                      leadingIcon="check"
-                      onPress={() => updateStatus("Selesai")}
-                      title="Terima Pembayaran"
-                      disabled={selectedTransaction.status === "Selesai"}
-                    />
-                    <Menu.Item
-                      leadingIcon="truck"
-                      onPress={() => updateStatus("Dikirim")}
-                      title="Tandai Dikirim"
-                      disabled={
-                        !["Diproses", "Menunggu Pembayaran"].includes(
-                          selectedTransaction.status
-                        )
-                      }
-                    />
-                    <Menu.Item
-                      leadingIcon="close"
-                      onPress={() => updateStatus("Dibatalkan")}
-                      title="Batalkan Transaksi"
-                      disabled={["Selesai", "Dibatalkan"].includes(
-                        selectedTransaction.status
-                      )}
-                    />
-                  </Menu>
-                )}
-              </Card.Actions>
-            </Card>
-          )}
-        </Modal>
-      </Portal>
-
-      {/* Modal Bukti Pembayaran */}
-      <Portal>
-        <Modal
-          visible={imageVisible}
-          onDismiss={hideImageModal}
-          contentContainerStyle={styles.imageModalContainer}
-        >
-          {selectedTransaction && (
-            <View style={styles.imageModalContent}>
+                  </View>
+                ))}
+              </Card.Content>
+            </ScrollView>
+            <Card.Actions style={styles.actionButtons}>
               <Button
-                icon="close"
-                onPress={hideImageModal}
-                style={styles.closeImageButton}
-                labelStyle={styles.closeButtonLabel}
+                mode="outlined"
+                onPress={hideDetailModal}
+                style={styles.closeButton}
               >
                 Tutup
               </Button>
-              <Image
-                source={{ uri: selectedTransaction.buktiPembayaran }}
-                style={styles.fullImage}
-                resizeMode="contain"
-              />
-            </View>
-          )}
-        </Modal>
-      </Portal>
+
+              {selectedTransaction.buktiPembayaran && (
+                <Button
+                  mode="contained"
+                  icon="file-image"
+                  onPress={showImageModal}
+                  style={styles.actionButton}
+                >
+                  Lihat Bukti Pembayaran
+                </Button>
+              )}
+
+              <Menu
+                visible={menuVisible}
+                onDismiss={() => setMenuVisible(false)}
+                anchor={
+                  <Button
+                    mode="contained"
+                    icon="cog"
+                    onPress={() => setMenuVisible(true)}
+                    style={styles.statusButton}
+                  >
+                    Ubah Status
+                  </Button>
+                }
+                contentStyle={[
+                  styles.menuContent,
+                  {
+                    maxHeight: 200,
+                    overflow: "scroll",
+                    marginBottom: 40,
+                  },
+                ]}
+                anchorPosition="top"
+              >
+                <Menu.Item
+                  leadingIcon="check"
+                  onPress={() => {
+                    updateStatus("Selesai");
+                    setMenuVisible(false);
+                  }}
+                  title="Terima Pembayaran"
+                  disabled={selectedTransaction.status === "Selesai"}
+                />
+                <Menu.Item
+                  leadingIcon="truck"
+                  onPress={() => {
+                    updateStatus("Dikirim");
+                    setMenuVisible(false);
+                  }}
+                  title="Tandai Dikirim"
+                  disabled={
+                    !["Diproses", "Menunggu Pembayaran"].includes(
+                      selectedTransaction.status
+                    )
+                  }
+                />
+                <Menu.Item
+                  leadingIcon="close"
+                  onPress={() => {
+                    updateStatus("Dibatalkan");
+                    setMenuVisible(false);
+                  }}
+                  title="Batalkan Transaksi"
+                  disabled={["Selesai", "Dibatalkan"].includes(
+                    selectedTransaction.status
+                  )}
+                />
+              </Menu>
+            </Card.Actions>
+          </Card>
+        )}
+      </Modal>
+
+      <Modal
+        visible={imageVisible}
+        onDismiss={hideImageModal}
+        contentContainerStyle={styles.imageModalContainer}
+      >
+        {selectedTransaction && (
+          <View style={styles.imageModalContent}>
+            <Button
+              icon="close"
+              onPress={hideImageModal}
+              style={styles.closeImageButton}
+              labelStyle={styles.closeButtonLabel}
+            >
+              Tutup
+            </Button>
+            <Image
+              source={{ uri: selectedTransaction.buktiPembayaran }}
+              style={styles.fullImage}
+              resizeMode="contain"
+            />
+            <Text style={styles.imageCaption}>Bukti Pembayaran</Text>
+          </View>
+        )}
+      </Modal>
     </PaperProvider>
   );
 };
@@ -378,7 +402,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   modalScrollView: {
-    maxHeight: "70%", // Memberikan ruang untuk action buttons
+    maxHeight: "70%",
   },
   modalTitle: {
     fontSize: 18,
@@ -472,12 +496,19 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingBottom: 16,
+    gap: 8,
   },
   closeButton: {
     borderColor: "#666",
+    flex: 1,
   },
   actionButton: {
     backgroundColor: "#2196F3",
+    flex: 1,
+  },
+  statusButton: {
+    backgroundColor: "#4CAF50",
+    flex: 1,
   },
   menuContent: {
     backgroundColor: "white",
@@ -502,11 +533,17 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 40,
     right: 20,
-    zIndex: 1000, // Pastikan tombol tutup berada di paling depan
+    zIndex: 1000,
     backgroundColor: "rgba(0,0,0,0.5)",
   },
   closeButtonLabel: {
     color: "white",
+  },
+  imageCaption: {
+    color: "white",
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });
 

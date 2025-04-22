@@ -223,6 +223,7 @@ export const DUMMY_TRANSACTION = [
     id: 1,
     tanggal: "2025-04-10T12:00:00Z",
     nama: "John Doe",
+    alamat: "Jl. Sudirman Kav. 21, Jakarta",
     items: [
       {
         id: 1,
@@ -246,12 +247,14 @@ export const DUMMY_TRANSACTION = [
     total: 5470000,
     status: "Selesai",
     metodePembayaran: "Transfer Bank",
-    buktiPembayaran: "https://mediakonsumen.com/files/2024/10/Screenshot_20240920-030802-3.jpg",
+    buktiPembayaran:
+      "https://mediakonsumen.com/files/2024/10/Screenshot_20240920-030802-3.jpg",
   },
   {
     id: 2,
     tanggal: "2025-04-11T15:30:00Z",
     nama: "Jane Smith",
+    alamat: "Jl. Sudirman Kav. 21, Jakarta",
     items: [
       {
         id: 2,
@@ -275,12 +278,14 @@ export const DUMMY_TRANSACTION = [
     total: 9125000,
     status: "Selesai",
     metodePembayaran: "Kartu Kredit",
-    buktiPembayaran: "https://mediakonsumen.com/files/2024/10/Screenshot_20240920-030802-3.jpg",
+    buktiPembayaran:
+      "https://mediakonsumen.com/files/2024/10/Screenshot_20240920-030802-3.jpg",
   },
   {
     id: 3,
     tanggal: "2025-04-12T10:45:00Z",
     nama: "Michael Johnson",
+    alamat: "Jl. Sudirman Kav. 21, Jakarta",
     items: [
       {
         id: 8,
@@ -295,12 +300,14 @@ export const DUMMY_TRANSACTION = [
     total: 2500000,
     status: "Selesai",
     metodePembayaran: "Tunai",
-    buktiPembayaran: "https://mediakonsumen.com/files/2024/10/Screenshot_20240920-030802-3.jpg",
+    buktiPembayaran:
+      "https://mediakonsumen.com/files/2024/10/Screenshot_20240920-030802-3.jpg",
   },
   {
     id: 4,
     tanggal: "2025-04-13T14:00:00Z",
     nama: "Alice Williams",
+    alamat: "Jl. Sudirman Kav. 21, Jakarta",
     items: [
       {
         id: 9,
@@ -324,7 +331,8 @@ export const DUMMY_TRANSACTION = [
     total: 6570000,
     status: "Selesai",
     metodePembayaran: "Kartu Debit",
-    buktiPembayaran: "https://mediakonsumen.com/files/2024/10/Screenshot_20240920-030802-3.jpg",
+    buktiPembayaran:
+      "https://mediakonsumen.com/files/2024/10/Screenshot_20240920-030802-3.jpg",
   },
 ];
 

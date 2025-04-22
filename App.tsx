@@ -27,7 +27,6 @@ export default function App() {
   useEffect(() => {
     const authSubscriber = onAuthStateChanged(auth, (user) => {
       setIsLoggedIn(!!user);
-      // Contoh sederhana untuk menentukan admin (sesuaikan dengan kebutuhan Anda)
       setIsAdmin(user?.email === "gagabelalang1001@gmail.com");
 
       if (initializing) setInitializing(false);

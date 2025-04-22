@@ -16,10 +16,15 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.tanjungraya.gold",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -32,6 +37,11 @@
           "cameraPermission": "Aplikasi membutuhkan akses ke kamera Anda untuk mengambil foto bukti transfer."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7c06f890-5848-448f-b786-1d1ca5149f90"
+      }
+    }
   }
 }

@@ -246,7 +246,7 @@ export const DUMMY_TRANSACTION = [
     total: 5470000,
     status: "Selesai",
     metodePembayaran: "Transfer Bank",
-    buktiPembayaran: "upload_url_bukti",
+    buktiPembayaran: "https://mediakonsumen.com/files/2024/10/Screenshot_20240920-030802-3.jpg",
   },
   {
     id: 2,
@@ -275,7 +275,7 @@ export const DUMMY_TRANSACTION = [
     total: 9125000,
     status: "Selesai",
     metodePembayaran: "Kartu Kredit",
-    buktiPembayaran: "upload_url_bukti",
+    buktiPembayaran: "https://mediakonsumen.com/files/2024/10/Screenshot_20240920-030802-3.jpg",
   },
   {
     id: 3,
@@ -295,7 +295,7 @@ export const DUMMY_TRANSACTION = [
     total: 2500000,
     status: "Selesai",
     metodePembayaran: "Tunai",
-    buktiPembayaran: "upload_url_bukti",
+    buktiPembayaran: "https://mediakonsumen.com/files/2024/10/Screenshot_20240920-030802-3.jpg",
   },
   {
     id: 4,
@@ -324,7 +324,7 @@ export const DUMMY_TRANSACTION = [
     total: 6570000,
     status: "Selesai",
     metodePembayaran: "Kartu Debit",
-    buktiPembayaran: "upload_url_bukti",
+    buktiPembayaran: "https://mediakonsumen.com/files/2024/10/Screenshot_20240920-030802-3.jpg",
   },
 ];
 

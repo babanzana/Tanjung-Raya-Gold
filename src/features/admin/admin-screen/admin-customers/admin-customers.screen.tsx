@@ -94,7 +94,7 @@ export const AdminCustomersScreen = ({ navigation }: any) => {
       {/* Add Customer Button */}
       <TouchableOpacity
         style={styles.addButton}
-        onPress={() => navigation.navigate("AddCustomer")}
+        // onPress={() => navigation.navigate("AddCustomer")}
       >
         <Text style={styles.addButtonText}>+ Add New Customer</Text>
       </TouchableOpacity>

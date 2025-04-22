@@ -37,7 +37,6 @@ export const LoginComponent = ({ navigation }: any) => {
     setLoading(true);
     try {
       const result = await loginUser(email, password);
-      console.log("🚀 ~ handleLogin ~ result:", result);
       if (!isMounted) return;
 
       if (!result.success) {

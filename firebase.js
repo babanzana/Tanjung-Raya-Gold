@@ -1,5 +1,4 @@
-// firebase.js
-import { initializeApp } from "@firebase/app";
+import { getApp, getApps, initializeApp } from "@firebase/app";
 import { getDatabase, ref, set } from "@firebase/database";
 import {
   getAuth,
@@ -12,6 +11,7 @@ import {
 } from "@firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+// Firebase Configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDGuOVia0SMTQ0L7s_zaW2dx3WYEQ5vS5I",
   authDomain: "tanjung-raya-5af26.firebaseapp.com",
@@ -22,20 +22,13 @@ const firebaseConfig = {
   measurementId: "G-SGDLKS5TPF",
 };
 
-// Inisialisasi app hanya sekali
-const app = initializeApp(firebaseConfig);
+// Inisialisasi aplikasi Firebase hanya jika belum ada
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp(); // Cek jika sudah ada app yang diinisialisasi
 
 // Inisialisasi auth dengan persistence
-export const auth = getAuth(app);
-// let auth;
-// try {
-//   auth = initializeAuth(app, {
-//     persistence: getReactNativePersistence(AsyncStorage),
-//   });
-// } catch (error) {
-//   console.error("Error initializing auth:", error);
-//   //   auth = getAuth(app); // Fallback ke auth default
-// }
+export const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(AsyncStorage), // Set persistence to AsyncStorage
+});
 
 const db = getDatabase(app);
 

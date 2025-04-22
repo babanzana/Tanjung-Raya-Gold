@@ -8,29 +8,14 @@ import { AdminProductContainer } from "../features/admin/admin-screen/admin-prod
 import { AdminProductDetailContainer } from "../features/admin/admin-screen/admin-product-detail/admin-product-detail.container";
 import { AdminCustomersContainer } from "../features/admin/admin-screen/admin-customers/admin-customers.container";
 import { AdminCustomersDetailContainer } from "../features/admin/admin-screen/admin-customers-edit/admin-customers-detail.container";
-
-// 1. Screen Components
-function DashboardScreen() {
-  return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <Text>Dashboard</Text>
-    </View>
-  );
-}
+import { AdminDashboardContainer } from "../features/admin/admin-screen/admin-dashboard/admin-dashboard.container";
+import { AdminTransactionsContainer } from "../features/admin/admin-screen/admin-transactions/admin-transactions.container";
+import { AdminReportContainer } from "../features/admin/admin-screen/admin-report/admin-report.container";
 
 function TransactionsScreen() {
   return (
     <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
       <Text>Transactions</Text>
-    </View>
-  );
-}
-
-// Admin Sub-screens
-function CustomersScreen() {
-  return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <Text>Customers</Text>
     </View>
   );
 }
@@ -58,16 +43,43 @@ function LogoutScreen() {
 // 2. Admin Stack Navigator
 const AdminStack = createStackNavigator();
 const AdminProductStack = createStackNavigator();
+const AdminDashboardStack = createStackNavigator();
+const AdminTransactionsStack = createStackNavigator();
+// Stack navigator untuk Dashboard
+function AdminDashboardScreen() {
+  return (
+    <AdminDashboardStack.Navigator>
+      <AdminDashboardStack.Screen
+        name="AdminDashboard"
+        component={AdminDashboardContainer}
+        options={{ headerShown: true }} // Menampilkan header
+      />
+    </AdminDashboardStack.Navigator>
+  );
+}
+
+function AdminTransactionsScreen() {
+  return (
+    <AdminTransactionsStack.Navigator>
+      <AdminTransactionsStack.Screen
+        name="AdminTransactions"
+        component={AdminTransactionsContainer}
+        options={{ headerShown: true }}
+      />
+    </AdminTransactionsStack.Navigator>
+  );
+}
+
 function AdminStackScreen() {
   return (
     <AdminStack.Navigator screenOptions={{ headerShown: true }}>
-      <AdminStack.Screen name="Admin" component={AdminLayoutContainer} />
+      <AdminStack.Screen name="AdminLayout" component={AdminLayoutContainer} />
       <AdminStack.Screen name="Customers" component={AdminCustomersContainer} />
       <AdminStack.Screen
         name="EditCustomer"
         component={AdminCustomersDetailContainer}
       />
-      <AdminStack.Screen name="Reports" component={ReportsScreen} />
+      <AdminStack.Screen name="Reports" component={AdminReportContainer} />
       <AdminStack.Screen name="Logout" component={LogoutScreen} />
     </AdminStack.Navigator>
   );
@@ -75,17 +87,17 @@ function AdminStackScreen() {
 
 function AdminProductScreen() {
   return (
-    <AdminStack.Navigator screenOptions={{ headerShown: true }}>
-      <AdminStack.Screen
+    <AdminProductStack.Navigator screenOptions={{ headerShown: true }}>
+      <AdminProductStack.Screen
         name="AdminProducts"
         component={AdminProductContainer}
       />
-      <AdminStack.Screen
+      <AdminProductStack.Screen
         name="AdminProductEdit"
         component={AdminProductDetailContainer}
         options={{ title: "Edit Product" }}
       />
-    </AdminStack.Navigator>
+    </AdminProductStack.Navigator>
   );
 }
 
@@ -125,8 +137,14 @@ export function AdminTabNavigator() {
         headerShown: false,
       })}
     >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen name="Transactions" component={TransactionsScreen} />
+      <Tab.Screen
+        name="Dashboard"
+        component={AdminDashboardScreen} // Menggunakan StackNavigator untuk Dashboard
+      />
+      <Tab.Screen
+        name="Transactions"
+        component={AdminTransactionsScreen} // Menggunakan StackNavigator untuk Dashboard
+      />
       <Tab.Screen name="Products" component={AdminProductScreen} />
       <Tab.Screen name="Admin" component={AdminStackScreen} />
     </Tab.Navigator>

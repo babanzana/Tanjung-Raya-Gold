@@ -192,7 +192,10 @@ export const AdminProductScreen = ({ navigation }: any) => {
       />
 
       {/* Add Product Button */}
-      <TouchableOpacity style={styles.addButton}>
+      <TouchableOpacity
+        // onPress={() => navigation.navigate("AdminProductEdit")}
+        style={styles.addButton}
+      >
         <Text style={styles.addButtonText}>+ Add New Product</Text>
       </TouchableOpacity>
     </View>

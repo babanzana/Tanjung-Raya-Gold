@@ -11,22 +11,7 @@ import { AdminCustomersDetailContainer } from "../features/admin/admin-screen/ad
 import { AdminDashboardContainer } from "../features/admin/admin-screen/admin-dashboard/admin-dashboard.container";
 import { AdminTransactionsContainer } from "../features/admin/admin-screen/admin-transactions/admin-transactions.container";
 import { AdminReportContainer } from "../features/admin/admin-screen/admin-report/admin-report.container";
-
-function TransactionsScreen() {
-  return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <Text>Transactions</Text>
-    </View>
-  );
-}
-
-function ReportsScreen() {
-  return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <Text>Reports</Text>
-    </View>
-  );
-}
+import { PenjualanOfflineContainer } from "../features/admin/admin-screen/penjualan-offline/penjualan-offline.container";
 
 function LogoutScreen() {
   Alert.alert("Logout", "Yakin ingin keluar?", [
@@ -52,7 +37,7 @@ function AdminDashboardScreen() {
       <AdminDashboardStack.Screen
         name="AdminDashboard"
         component={AdminDashboardContainer}
-        options={{ headerShown: true }} // Menampilkan header
+        options={{ headerShown: true, title: "Admin Dashboard" }}
       />
     </AdminDashboardStack.Navigator>
   );
@@ -64,7 +49,7 @@ function AdminTransactionsScreen() {
       <AdminTransactionsStack.Screen
         name="AdminTransactions"
         component={AdminTransactionsContainer}
-        options={{ headerShown: true }}
+        options={{ headerShown: true, title: "Admin Transaction" }}
       />
     </AdminTransactionsStack.Navigator>
   );
@@ -73,13 +58,31 @@ function AdminTransactionsScreen() {
 function AdminStackScreen() {
   return (
     <AdminStack.Navigator screenOptions={{ headerShown: true }}>
-      <AdminStack.Screen name="AdminLayout" component={AdminLayoutContainer} />
-      <AdminStack.Screen name="Customers" component={AdminCustomersContainer} />
+      <AdminStack.Screen
+        name="AdminLayout"
+        component={AdminLayoutContainer}
+        options={{ title: "Admin Layout" }}
+      />
+      <AdminStack.Screen
+        name="Customers"
+        component={AdminCustomersContainer}
+        options={{ title: "Admin Customers" }}
+      />
       <AdminStack.Screen
         name="EditCustomer"
         component={AdminCustomersDetailContainer}
+        options={{ title: "Detail Customer" }}
       />
-      <AdminStack.Screen name="Reports" component={AdminReportContainer} />
+      <AdminStack.Screen
+        name="PenjualanOffline"
+        component={PenjualanOfflineContainer}
+        options={{ title: "Penjualan Offline" }}
+      />
+      <AdminStack.Screen
+        name="Reports"
+        component={AdminReportContainer}
+        options={{ title: "Admin Reports" }}
+      />
       <AdminStack.Screen name="Logout" component={LogoutScreen} />
     </AdminStack.Navigator>
   );
@@ -91,11 +94,12 @@ function AdminProductScreen() {
       <AdminProductStack.Screen
         name="AdminProducts"
         component={AdminProductContainer}
+        options={{ title: "Admin Products" }}
       />
       <AdminProductStack.Screen
         name="AdminProductEdit"
         component={AdminProductDetailContainer}
-        options={{ title: "Edit Product" }}
+        options={{ title: "Detail Product" }}
       />
     </AdminProductStack.Navigator>
   );

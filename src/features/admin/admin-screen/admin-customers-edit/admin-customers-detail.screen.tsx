@@ -15,7 +15,7 @@ interface Customer {
   nama: string;
   username: string;
   email: string;
-  roles: string;
+  nohp: string; // Changed from roles to nohp
   alamat: string;
   imageUrl: string;
 }
@@ -120,11 +120,12 @@ export const AdminCustomersDetailScreen = ({
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Role</Text>
+          <Text style={styles.label}>Phone Number</Text>
           <TextInput
             mode="outlined"
-            value={editedCustomer.roles}
-            onChangeText={(text) => handleChange("roles", text)}
+            value={editedCustomer.nohp}
+            onChangeText={(text) => handleChange("nohp", text)}
+            keyboardType="phone-pad"
             style={styles.input}
           />
         </View>

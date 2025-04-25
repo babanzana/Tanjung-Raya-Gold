@@ -16,20 +16,25 @@ interface Customer {
   nama: string;
   username: string;
   email: string;
-  roles: string;
+  nohp: string; // Changed from roles to noHp
   alamat: string;
   imageUrl: string;
 }
 
 export const AdminCustomersScreen = ({ navigation }: any) => {
-  const [customers, setCustomers] = useState<Customer[]>(DUMMY_USERS[0].users);
+  const [customers, setCustomers] = useState<Customer[]>(
+    DUMMY_USERS[0].users.map((user) => ({
+      ...user,
+      noHp: user.roles, // Temporarily using roles as phone number for dummy data
+    }))
+  );
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const filteredCustomers = customers.filter((customer) => {
     return (
       customer.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
       customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.roles.toLowerCase().includes(searchQuery.toLowerCase())
+      customer.nohp.toLowerCase().includes(searchQuery.toLowerCase()) // Search by phone number
     );
   });
 
@@ -43,7 +48,8 @@ export const AdminCustomersScreen = ({ navigation }: any) => {
       <View style={styles.customerInfo}>
         <Text style={styles.customerName}>{item.nama}</Text>
         <Text style={styles.customerEmail}>{item.email}</Text>
-        <Text style={styles.customerRole}>Role: {item.roles}</Text>
+        <Text style={styles.customerPhone}>No. HP: {item.nohp}</Text>{" "}
+        {/* Changed from roles to phone */}
         <Text style={styles.customerAddress} numberOfLines={1}>
           {item.alamat}
         </Text>
@@ -94,7 +100,7 @@ export const AdminCustomersScreen = ({ navigation }: any) => {
       {/* Add Customer Button */}
       <TouchableOpacity
         style={styles.addButton}
-        // onPress={() => navigation.navigate("AddCustomer")}
+        onPress={() => navigation.navigate("AddCustomer")}
       >
         <Text style={styles.addButtonText}>+ Add New Customer</Text>
       </TouchableOpacity>
@@ -160,9 +166,10 @@ const styles = StyleSheet.create({
     color: "#666",
     marginBottom: 2,
   },
-  customerRole: {
-    fontSize: 12,
-    color: "#888",
+  customerPhone: {
+    // New style for phone number
+    fontSize: 14,
+    color: "#444",
     marginBottom: 2,
   },
   customerAddress: {

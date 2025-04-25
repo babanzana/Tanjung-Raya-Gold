@@ -9,7 +9,7 @@ import {
   Alert,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { logoutUser } from "../../../firebase";
+import { auth, logoutUser } from "../../../firebase";
 
 interface User {
   name: string;

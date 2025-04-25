@@ -27,7 +27,7 @@ export default function App() {
   useEffect(() => {
     const authSubscriber = onAuthStateChanged(auth, (user) => {
       setIsLoggedIn(!!user);
-      setIsAdmin(user?.email === "gagabelalang1001@gmail.com");
+      setIsAdmin(user?.email === "kejax80@gmail.com");
 
       if (initializing) setInitializing(false);
     });

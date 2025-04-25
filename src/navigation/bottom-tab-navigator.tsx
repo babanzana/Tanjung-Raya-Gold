@@ -83,7 +83,7 @@ const ProfileStackNavigator = () => (
     <CartStack.Screen
       name="Wishlist"
       component={WishlistContainer}
-      options={{ title: "Wishlist" }}
+      options={{ title: "Wishlist Items" }}
     />
     <CartStack.Screen
       name="FAQ"

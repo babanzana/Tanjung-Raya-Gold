@@ -18,6 +18,12 @@ export const AdminLayoutScreen = ({ navigation }: any) => {
       onPress: () => navigation.navigate("Customers"),
     },
     {
+      title: "Penjualan Offline",
+      icon: "document-text",
+      color: "#2196F3",
+      onPress: () => navigation.navigate("PenjualanOffline"),
+    },
+    {
       title: "Buat Laporan",
       icon: "document-text",
       color: "#2196F3",

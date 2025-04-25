@@ -194,10 +194,6 @@ export const AdminReportScreen = () => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text variant="titleLarge" style={styles.title}>
-        Laporan Transaksi
-      </Text>
-
       {/* Filter Section */}
       <Card style={styles.filterCard}>
         <Card.Content>

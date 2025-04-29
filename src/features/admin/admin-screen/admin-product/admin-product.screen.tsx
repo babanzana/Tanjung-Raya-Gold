@@ -1,5 +1,5 @@
 // admin-product.screen.tsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   FlatList,
@@ -11,6 +11,9 @@ import {
   TextInput,
 } from "react-native";
 import { DUMMY_PRODUCTS } from "../../../../dummy";
+import { getAllProducts } from "../../../../database/products";
+import { addInitialProducts } from "../../../../../firebase";
+import { ActivityIndicator } from "react-native-paper";
 
 interface Product {
   id: number;
@@ -23,14 +26,14 @@ interface Product {
 }
 
 export const AdminProductScreen = ({ navigation }: any) => {
-  const [products, setProducts] = useState<Product[]>(DUMMY_PRODUCTS);
+  const [products, setProducts] = useState<any[]>();
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [sortBy, setSortBy] = useState<string>("name");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const categories = ["All", ...new Set(DUMMY_PRODUCTS.map((p) => p.category))];
 
-  const filteredProducts = products.filter((product) => {
+  const filteredProducts = products?.filter((product) => {
     const matchesCategory =
       selectedCategory === "All" || product.category === selectedCategory;
     const matchesSearch =
@@ -39,12 +42,37 @@ export const AdminProductScreen = ({ navigation }: any) => {
     return matchesCategory && matchesSearch;
   });
 
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
+  const sortedProducts = [...(filteredProducts || [])].sort((a, b) => {
     if (sortBy === "name") return a.name.localeCompare(b.name);
     if (sortBy === "price") return a.price - b.price;
     if (sortBy === "stock") return a.stock - b.stock;
     return 0;
   });
+
+  const [isLoading, setIsLoading] = useState<boolean>(true); // State untuk menandakan loading
+
+  useEffect(() => {
+    // Panggil getAllProducts dan simpan data produk ke dalam state
+    const fetchProducts = async () => {
+      try {
+        // addInitialProducts(); // Tambahkan data awal jika belum ada
+        const productsData = await getAllProducts(); // Ambil data produk
+        console.log("🚀 ~ fetchProducts ~ productsData:", productsData);
+
+        if (productsData) {
+          setProducts(productsData); // Simpan data produk ke dalam state
+        } else {
+          console.error("Failed to fetch products: Invalid data format");
+        }
+      } catch (error) {
+        console.error("Error fetching products:", error);
+      } finally {
+        setIsLoading(false); // Set isLoading menjadi false setelah proses pengambilan data selesai
+      }
+    };
+
+    fetchProducts(); // Panggil fungsi untuk mengambil data produk saat komponen pertama kali dimuat
+  }, []);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -181,15 +209,19 @@ export const AdminProductScreen = ({ navigation }: any) => {
       </View>
 
       {/* Product List */}
-      <FlatList
-        data={sortedProducts}
-        renderItem={renderProductItem}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.productList}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>No products found</Text>
-        }
-      />
+      {!isLoading ? (
+        <FlatList
+          data={sortedProducts}
+          renderItem={renderProductItem}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.productList}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No products found</Text>
+          }
+        />
+      ) : (
+        <ActivityIndicator size="large" color="#0000ff" />
+      )}
 
       {/* Add Product Button */}
       <TouchableOpacity

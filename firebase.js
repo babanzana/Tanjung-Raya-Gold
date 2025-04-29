@@ -10,11 +10,14 @@ import {
   getReactNativePersistence,
 } from "@firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { DUMMY_PRODUCTS } from "./src/dummy";
 
 // Firebase Configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDGuOVia0SMTQ0L7s_zaW2dx3WYEQ5vS5I",
   authDomain: "tanjung-raya-5af26.firebaseapp.com",
+  databaseURL:
+    "https://tanjung-raya-5af26-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "tanjung-raya-5af26",
   storageBucket: "tanjung-raya-5af26.appspot.com",
   messagingSenderId: "717343338971",
@@ -114,6 +117,27 @@ export const resetPassword = async (email) => {
     return { success: false, error: errorMessage };
   }
 };
+
+// ======================================================================
+// ======================================================================
+// Fungsi untuk menambahkan produk awal
+export const addInitialProducts = () => {
+  const productsRef = ref(db, "products");
+
+  // DUMMY_PRODUCTS sebagai data awal
+  DUMMY_PRODUCTS.forEach((product) => {
+    set(ref(db, "products/" + product.id), product)
+      .then(() => {
+        console.log("Product added:", product.name);
+      })
+      .catch((error) => {
+        console.error("Error adding product:", error);
+      });
+  });
+};
+
+// ======================================================================
+// ======================================================================
 
 // Ekspor auth dan db
 export { db };

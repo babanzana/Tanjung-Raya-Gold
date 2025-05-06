@@ -11,9 +11,10 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { formatPrice } from "../../../utils";
+import { DUMMY_TRANSACTION } from "../../../dummy";
 
-export const TransactionHistoryScreen = ({ route, navigation }: any) => {
-  const { transactions } = route.params;
+export const TransactionHistoryScreen = () => {
+  const transactions = DUMMY_TRANSACTION;
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [showFullImage, setShowFullImage] = useState(false);
   const [fullImageUri, setFullImageUri] = useState("");

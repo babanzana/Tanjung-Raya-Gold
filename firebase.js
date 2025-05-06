@@ -1,5 +1,6 @@
+// Firebase.js
 import { getApp, getApps, initializeApp } from "@firebase/app";
-import { getDatabase, ref, set } from "@firebase/database";
+import { getDatabase, ref, set, get } from "@firebase/database";
 import {
   getAuth,
   initializeAuth,
@@ -10,7 +11,6 @@ import {
   getReactNativePersistence,
 } from "@firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { DUMMY_PRODUCTS } from "./src/dummy";
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -25,14 +25,20 @@ const firebaseConfig = {
   measurementId: "G-SGDLKS5TPF",
 };
 
-// Inisialisasi aplikasi Firebase hanya jika belum ada
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp(); // Cek jika sudah ada app yang diinisialisasi
+// Initialize Firebase App
+let app;
+if (getApps().length === 0) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApp();
+}
 
-// Inisialisasi auth dengan persistence
-export const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage), // Set persistence to AsyncStorage
+// Initialize Firebase Auth with persistence
+const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(AsyncStorage),
 });
 
+// Initialize Database
 const db = getDatabase(app);
 
 // Fungsi untuk mendapatkan current user
@@ -118,13 +124,10 @@ export const resetPassword = async (email) => {
   }
 };
 
-// ======================================================================
-// ======================================================================
 // Fungsi untuk menambahkan produk awal
 export const addInitialProducts = () => {
   const productsRef = ref(db, "products");
 
-  // DUMMY_PRODUCTS sebagai data awal
   DUMMY_PRODUCTS.forEach((product) => {
     set(ref(db, "products/" + product.id), product)
       .then(() => {
@@ -136,8 +139,20 @@ export const addInitialProducts = () => {
   });
 };
 
-// ======================================================================
-// ======================================================================
-
 // Ekspor auth dan db
-export { db };
+export { db, auth };
+
+export const getUserData = async (userId) => {
+  try {
+    const userRef = ref(db, `users/${userId}`);
+    const snapshot = await get(userRef);
+
+    if (snapshot.exists()) {
+      return { success: true, data: snapshot.val() };
+    } else {
+      return { success: false, error: "User data not found" };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};

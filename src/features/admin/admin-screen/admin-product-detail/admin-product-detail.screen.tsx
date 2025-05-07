@@ -31,6 +31,13 @@ export const AdminProductDetailScreen = ({
     onSave(editedProduct);
   };
 
+  const imageUrl = editedProduct.image;
+
+  // Ekstrak ID file dari URL
+  const fileId = imageUrl.split("/file/d/")[1].split("/")[0];
+
+  // Format ulang URL
+  const displayUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -39,8 +46,9 @@ export const AdminProductDetailScreen = ({
       <ScrollView style={styles.container}>
         {editedProduct.image && (
           <Image
-            source={{ uri: editedProduct.image }}
+            source={{ uri: displayUrl }}
             style={styles.productImage}
+            resizeMode="contain"
           />
         )}
 

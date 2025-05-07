@@ -126,6 +126,7 @@ export const AdminProductScreen = ({ navigation }: any) => {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryScroll}
+          // refreshControl={}
         >
           {categories.map((category) => (
             <TouchableOpacity

@@ -156,3 +156,14 @@ export const getUserData = async (userId) => {
     return { success: false, error: error.message };
   }
 };
+
+export const saveProduct = async (product) => {
+  try {
+    const productRef = ref(db, `products/${product.id}`);
+    await set(productRef, product);
+    return { success: true };
+  } catch (error) {
+    console.error("Firebase save error:", error);
+    return { success: false, error };
+  }
+};

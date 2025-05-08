@@ -2,40 +2,212 @@ import {
   SafeAreaView,
   View,
   StyleSheet,
-  FlatList,
   Image,
   TouchableOpacity,
-  TextInput,
   ScrollView,
+  Alert,
 } from "react-native";
-import { Text, Chip, Button } from "react-native-paper";
+import { Text, Button } from "react-native-paper";
 import { useState } from "react";
 import { formatPrice } from "../../../utils";
+import {
+  addToCart,
+  auth,
+  db,
+  getCartItems,
+  updateCartItemQuantity,
+} from "../../../../firebase";
+import { ref, set } from "@react-native-firebase/database";
 
 export const ProductDetailScreen = ({ route, navigation }: any) => {
   const { product } = route.params;
   const [quantity, setQuantity] = useState(1);
   const [isInWishlist, setIsInWishlist] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleAddToCart = () => {
-    console.log(`Added ${quantity} items to cart`);
-    // Tambahkan logika untuk menambahkan ke keranjang
-  };
+  const totalPrice = product.price * quantity;
 
-  const handleWishlist = () => {
-    setIsInWishlist(!isInWishlist);
-    console.log(isInWishlist ? "Removed from wishlist" : "Added to wishlist");
+  const decreaseQuantity = () => {
+    if (quantity > 1) {
+      setQuantity(quantity - 1);
+    }
   };
 
   const increaseQuantity = () => {
-    setQuantity((prev) => Math.min(prev + 1, product.stock));
+    if (quantity < product.stock) {
+      setQuantity(quantity + 1);
+    }
   };
 
-  const decreaseQuantity = () => {
-    setQuantity((prev) => Math.max(prev - 1, 1));
+  const handleAddToCart = async () => {
+    if (!auth.currentUser) {
+      navigation.navigate("Auth");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const cartItems = await getCartItems(auth.currentUser.uid);
+      const existingItem = cartItems.find((item) => item.id === product.id);
+
+      if (existingItem) {
+        // Jika barang sudah ada di keranjang, tampilkan alert
+        Alert.alert(
+          "Item Sudah Ada di Keranjang",
+          `${product.name} sudah ada di keranjang dengan jumlah ${existingItem.quantity}.`,
+          [
+            {
+              text: "Lihat Keranjang",
+              onPress: () =>
+                navigation.navigate("CartStack", { screen: "Cart" }),
+            },
+            {
+              text: "Batal",
+              style: "cancel",
+            },
+          ]
+        );
+      } else {
+        // Jika barang belum ada di keranjang, tambahkan ke keranjang
+        const result = await addToCart(auth.currentUser.uid, product, quantity);
+        if (result.success) {
+          Alert.alert(
+            "Berhasil",
+            `${product.name} telah ditambahkan ke keranjang`,
+            [
+              {
+                text: "Lihat Keranjang",
+                onPress: () =>
+                  navigation.navigate("CartStack", { screen: "Cart" }),
+              },
+              {
+                text: "Lanjut Belanja",
+                style: "cancel",
+              },
+            ]
+          );
+        }
+      }
+    } catch (error) {
+      // console.error("Error:", error);
+      // Alert.alert("Error", "Terjadi kesalahan saat memproses permintaan");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const totalPrice = product.price * quantity;
+  // const handleAddToCart = async () => {
+  //   if (!auth.currentUser) {
+  //     navigation.navigate("Auth");
+  //     return;
+  //   }
+
+  //   setIsLoading(true);
+  //   try {
+  //     const cartItems = await getCartItems(auth.currentUser.uid);
+  //     const existingItem = cartItems.find((item) => item.id === product.id);
+
+  //     if (existingItem) {
+  //       // Item sudah ada di keranjang
+  //       Alert.alert(
+  //         "Item Sudah Ada di Keranjang",
+  //         `${product.name} sudah ada di keranjang dengan jumlah ${existingItem.quantity}.`,
+  //         [
+  //           {
+  //             text: "Lihat Keranjang",
+  //             onPress: () =>
+  //               navigation.navigate("CartStack", { screen: "Cart" }),
+  //           },
+  //           // {
+  //           //   text: "Tambahkan Lagi",
+  //           //   onPress: async () => {
+  //           //     try {
+  //           //       const newQuantity = existingItem.quantity + quantity;
+  //           //       await set(
+  //           //         ref(db, `users/${auth.currentUser.uid}/cart/${product.id}`),
+  //           //         {
+  //           //           ...existingItem,
+  //           //           quantity: newQuantity,
+  //           //           updatedAt: Date.now(),
+  //           //         }
+  //           //       );
+  //           //       Alert.alert(
+  //           //         "Berhasil",
+  //           //         `Jumlah ${product.name} di keranjang telah diperbarui menjadi ${newQuantity}`,
+  //           //         [
+  //           //           {
+  //           //             text: "Lihat Keranjang",
+  //           //             onPress: () =>
+  //           //               navigation.navigate("CartStack", { screen: "Cart" }),
+  //           //           },
+  //           //           {
+  //           //             text: "OK",
+  //           //             style: "cancel",
+  //           //           },
+  //           //         ]
+  //           //       );
+  //           //     } catch (error) {
+  //           //       console.error("Error updating cart item:", error);
+  //           //       Alert.alert(
+  //           //         "Error",
+  //           //         "Gagal memperbarui jumlah item di keranjang"
+  //           //       );
+  //           //     }
+  //           //   },
+  //           // },
+  //           {
+  //             text: "Batal",
+  //             style: "cancel",
+  //           },
+  //         ]
+  //       );
+  //     } else {
+  //       // Item baru, tambahkan ke keranjang
+  //       const cartItem = {
+  //         ...product,
+  //         quantity: quantity,
+  //         createdAt: Date.now(),
+  //         updatedAt: Date.now(),
+  //       };
+
+  //       await set(
+  //         ref(db, `users/${auth.currentUser.uid}/cart/${product.id}`),
+  //         cartItem
+  //       );
+
+  //       Alert.alert(
+  //         "Berhasil",
+  //         `${product.name} telah ditambahkan ke keranjang`,
+  //         [
+  //           {
+  //             text: "Lihat Keranjang",
+  //             onPress: () =>
+  //               navigation.navigate("CartStack", { screen: "Cart" }),
+  //           },
+  //           {
+  //             text: "Lanjut Belanja",
+  //             style: "cancel",
+  //           },
+  //         ]
+  //       );
+  //     }
+  //   } catch (error) {
+  //     console.error("Error:", error);
+  //     Alert.alert("Error", "Terjadi kesalahan saat memproses permintaan");
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
+  const handleWishlist = () => {
+    setIsInWishlist(!isInWishlist);
+    Alert.alert(
+      isInWishlist ? "Dihapus dari Wishlist" : "Ditambahkan ke Wishlist",
+      isInWishlist
+        ? `${product.name} dihapus dari wishlist`
+        : `${product.name} ditambahkan ke wishlist`
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -53,10 +225,6 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
               Kategori: {product.category}
             </Text>
 
-            <View style={styles.detailRating}>
-              <Text>⭐ {product.rating}</Text>
-            </View>
-
             <Text style={styles.detailPrice}>{formatPrice(product.price)}</Text>
             <Text style={styles.detailStock}>
               Stok tersedia: {product.stock}
@@ -69,7 +237,10 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
               <Text style={styles.quantityLabel}>Jumlah:</Text>
               <View style={styles.quantityControls}>
                 <TouchableOpacity
-                  style={styles.quantityButton}
+                  style={[
+                    styles.quantityButton,
+                    quantity <= 1 && styles.disabledButton,
+                  ]}
                   onPress={decreaseQuantity}
                   disabled={quantity <= 1}
                 >
@@ -77,7 +248,10 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
                 </TouchableOpacity>
                 <Text style={styles.quantityValue}>{quantity}</Text>
                 <TouchableOpacity
-                  style={styles.quantityButton}
+                  style={[
+                    styles.quantityButton,
+                    quantity >= product.stock && styles.disabledButton,
+                  ]}
                   onPress={increaseQuantity}
                   disabled={quantity >= product.stock}
                 >
@@ -99,8 +273,12 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
                 style={styles.addButton}
                 labelStyle={styles.buttonLabel}
                 onPress={handleAddToCart}
+                loading={isLoading}
+                disabled={isLoading}
               >
-                Tambah ke Keranjang ({quantity})
+                {isLoading
+                  ? "Memproses..."
+                  : `Tambah ke Keranjang (${quantity})`}
               </Button>
               <Button
                 mode="outlined"
@@ -128,165 +306,100 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    padding: 10,
   },
   scrollContainer: {
-    padding: 15,
-    paddingBottom: 100, // Untuk memberi ruang bagi fixed buttons
-  },
-  searchContainer: {
-    padding: 10,
-    backgroundColor: "#f5f5f5",
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  searchInput: {
-    backgroundColor: "#fff",
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 8,
-    fontSize: 16,
-  },
-  filterContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginBottom: 10,
-  },
-  chip: {
-    margin: 4,
-  },
-  listContainer: {
     paddingBottom: 20,
   },
-  productCard: {
-    flex: 1,
-    margin: 5,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 10,
-    overflow: "hidden",
-    maxWidth: "48%",
-  },
-  productImage: {
-    width: "100%",
-    height: 120,
-    backgroundColor: "#f0f0f0",
-  },
-  productInfo: {
-    padding: 10,
-  },
-  productName: {
-    fontWeight: "bold",
-    fontSize: 14,
-    marginBottom: 5,
-  },
-  productPrice: {
-    color: "#2e7d32",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-  productMeta: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 5,
-  },
-  productStock: {
-    fontSize: 12,
-    color: "#666",
-  },
-  productRating: {
-    fontSize: 12,
-    color: "#ff9800",
-  },
   detailContainer: {
-    flex: 1,
-    padding: 15,
+    padding: 16,
   },
   detailImage: {
     width: "100%",
-    height: 250,
-    marginBottom: 20,
+    height: 300,
+    borderRadius: 8,
+    marginBottom: 16,
   },
   detailContent: {
-    flex: 1,
+    paddingHorizontal: 8,
   },
   detailName: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "bold",
-    marginBottom: 5,
+    marginBottom: 8,
   },
   detailCategory: {
     fontSize: 16,
     color: "#666",
-    marginBottom: 10,
-  },
-  detailRating: {
-    marginBottom: 10,
+    marginBottom: 12,
   },
   detailPrice: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "bold",
     color: "#2e7d32",
-    marginBottom: 5,
+    marginBottom: 8,
   },
   detailStock: {
-    fontSize: 16,
-    marginBottom: 15,
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 16,
   },
   detailDescription: {
     fontSize: 16,
     lineHeight: 24,
-    marginBottom: 20,
-  },
-  buttonGroup: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 20,
+    marginBottom: 24,
   },
   quantityContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginVertical: 20,
-    paddingHorizontal: 10,
+    marginBottom: 20,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: "#eee",
   },
   quantityLabel: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "500",
   },
   quantityControls: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#d4af37",
-    borderRadius: 8,
   },
   quantityButton: {
     width: 40,
     height: 40,
+    borderRadius: 20,
+    backgroundColor: "#f0f0f0",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f8f8f8",
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
   quantityButtonText: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#d4af37",
   },
   quantityValue: {
-    width: 50,
-    textAlign: "center",
     fontSize: 18,
-    fontWeight: "bold",
+    marginHorizontal: 16,
+    minWidth: 30,
+    textAlign: "center",
   },
   totalContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 20,
-    paddingHorizontal: 10,
+    alignItems: "center",
+    marginBottom: 24,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: "#eee",
   },
   totalLabel: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: "500",
   },
   totalPrice: {
     fontSize: 18,
@@ -294,38 +407,32 @@ const styles = StyleSheet.create({
     color: "#2e7d32",
   },
   verticalButtonGroup: {
-    marginTop: 20,
-    gap: 12, // Memberi jarak antara tombol
+    marginTop: 16,
   },
   addButton: {
-    borderRadius: 8,
-    backgroundColor: "#d4af37",
     paddingVertical: 8,
-    elevation: 3, // Shadow untuk Android
-    shadowColor: "#000", // Shadow untuk iOS
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  wishlistButton: {
     borderRadius: 8,
-    borderColor: "#d4af37",
-    paddingVertical: 8,
-    backgroundColor: "transparent",
-  },
-  wishlistButtonActive: {
-    backgroundColor: "#fff8e1",
-    borderColor: "#d4af37",
+    marginBottom: 12,
+    backgroundColor: "#2e7d32",
   },
   buttonLabel: {
+    color: "white",
     fontSize: 16,
-    fontWeight: "600",
-    color: "#fff", // Untuk tombol utama
+    fontWeight: "bold",
+  },
+  wishlistButton: {
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderColor: "#2e7d32",
+  },
+  wishlistButtonActive: {
+    backgroundColor: "#f8f8f8",
   },
   wishlistButtonLabel: {
-    color: "#d4af37", // Untuk tombol outlined
+    color: "#2e7d32",
+    fontSize: 16,
   },
   wishlistButtonActiveLabel: {
-    color: "#b8860b", // Untuk tombol active
+    color: "#d32f2f",
   },
 });

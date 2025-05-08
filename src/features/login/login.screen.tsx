@@ -40,7 +40,7 @@ export const LoginComponent = ({ navigation }: any) => {
       if (!isMounted) return;
 
       if (!result.success) {
-        Alert.alert("Error", result.error);
+        Alert.alert("Error", "Wrong Password or Email");
         setPassword("");
       }
     } catch (error) {

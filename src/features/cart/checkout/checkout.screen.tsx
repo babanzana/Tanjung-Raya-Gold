@@ -12,13 +12,20 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { MaterialIcons } from "@expo/vector-icons";
+import {
+  addTransactionHistory,
+  auth,
+  updateProductStock,
+} from "../../../../firebase";
 
 const CheckoutScreen = ({ route, navigation }: any) => {
   const { total } = route.params;
   const [paymentMethod, setPaymentMethod] = useState("transfer");
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
-  const [paymentProof, setPaymentProof] = useState<{ uri: string } | null>(null);
+  const [paymentProof, setPaymentProof] = useState<{ uri: string } | null>(
+    null
+  );
   const [uploading, setUploading] = useState(false);
 
   const paymentMethods = [
@@ -100,26 +107,88 @@ const CheckoutScreen = ({ route, navigation }: any) => {
     }
   };
 
-  const handleCheckout = () => {
-    if (paymentMethod === "transfer" && !paymentProof) {
-      Alert.alert(
-        "Bukti Transfer Diperlukan",
-        "Silakan upload bukti transfer terlebih dahulu",
-        [{ text: "OK" }]
-      );
+  // const handleCheckout = () => {
+  //   if (paymentMethod === "transfer" && !paymentProof) {
+  //     Alert.alert(
+  //       "Bukti Transfer Diperlukan",
+  //       "Silakan upload bukti transfer terlebih dahulu",
+  //       [{ text: "OK" }]
+  //     );
+  //     return;
+  //   }
+
+  //   navigation.navigate("OrderConfirmation", {
+  //     orderDetails: {
+  //       total,
+  //       paymentMethod:
+  //         paymentMethods.find((m) => m.id === paymentMethod)?.name || "Unknown",
+  //       address,
+  //       notes,
+  //       paymentProof: paymentMethod === "transfer" ? paymentProof : null,
+  //     },
+  //   });
+  // };
+
+  const cartItems = route.params.cartItems || [];
+
+  const handleConfirmOrder = async () => {
+    console.log("Klik konfirmasi pesanan");
+    // Pastikan user sudah login
+    if (!auth.currentUser) {
+      Alert.alert("Error", "Anda harus login terlebih dahulu.");
       return;
     }
 
-    navigation.navigate("OrderConfirmation", {
-      orderDetails: {
+    setUploading(true);
+
+    try {
+      // Mengurangi stok untuk setiap produk yang dibeli
+      for (let item of cartItems) {
+        const result = await updateProductStock(item.id, item.quantity);
+        if (!result.success) {
+          Alert.alert(
+            "Error",
+            "Gagal mengurangi stok untuk produk " + item.name
+          );
+          return;
+        }
+      }
+
+      // Menambahkan riwayat transaksi
+      const transactionDetails = {
         total,
-        paymentMethod:
-          paymentMethods.find((m) => m.id === paymentMethod)?.name || "Unknown",
+        paymentMethod,
         address,
         notes,
-        paymentProof: paymentMethod === "transfer" ? paymentProof : null,
-      },
-    });
+        products: cartItems.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+      };
+
+      const transactionResult = await addTransactionHistory(
+        auth.currentUser.uid,
+        transactionDetails
+      );
+      if (!transactionResult.success) {
+        Alert.alert("Error", "Gagal menambahkan riwayat transaksi");
+        return;
+      }
+
+      // Berhasil, navigasi ke halaman konfirmasi
+      // navigation.navigate("OrderConfirmation", {
+      //   orderDetails: transactionDetails,
+      // });
+
+      Alert.alert("Berhasil", "Items: " + transactionResult);
+    } catch (error) {
+      console.error("Error during checkout:", error);
+      Alert.alert("Error", "Terjadi kesalahan saat memproses pesanan");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const renderPaymentDetails = () => {
@@ -266,11 +335,24 @@ const CheckoutScreen = ({ route, navigation }: any) => {
       </View>
 
       <TouchableOpacity
-        style={styles.checkoutButton}
-        onPress={handleCheckout}
-        disabled={!address && paymentMethod !== "cod"}
+        style={[
+          styles.checkoutButton,
+          (!address || (paymentMethod === "transfer" && !paymentProof)) &&
+            styles.disabledButton,
+        ]}
+        onPress={handleConfirmOrder}
+        disabled={
+          !address && (paymentProof === null || paymentMethod !== "cod")
+        }
       >
-        <Text style={styles.checkoutButtonText}>Konfirmasi Pesanan</Text>
+        <Text
+          style={[
+            styles.checkoutButtonText,
+            !address && styles.disabledButtonText,
+          ]}
+        >
+          Konfirmasi Pesanan
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -481,6 +563,12 @@ const styles = StyleSheet.create({
   changeProofText: {
     color: "#FFD700",
     fontWeight: "bold",
+  },
+  disabledButton: {
+    backgroundColor: "rgba(255, 215, 0, 0.5)", // Warna emas dengan transparansi 50%
+  },
+  disabledButtonText: {
+    color: "rgba(0, 0, 0, 0.5)", // Teks lebih transparan
   },
 });
 

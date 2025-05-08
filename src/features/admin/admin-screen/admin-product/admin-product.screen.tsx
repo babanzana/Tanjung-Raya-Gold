@@ -11,8 +11,7 @@ import {
   TextInput,
 } from "react-native";
 import { DUMMY_PRODUCTS } from "../../../../dummy";
-import { getAllProducts } from "../../../../database/products";
-import { addInitialProducts } from "../../../../../firebase";
+import { addInitialProducts, getAllProducts } from "../../../../../firebase";
 import { ActivityIndicator } from "react-native-paper";
 
 interface Product {

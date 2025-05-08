@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,63 +8,86 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  RefreshControl,
+  Alert,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import { formatPrice } from "../../../utils";
-import { DUMMY_TRANSACTION } from "../../../dummy";
+import { formatPrice } from "../../../utils"; // Import fungsi getTransactionHistory dari firebase
+import { auth, getTransactionHistory } from "../../../../firebase";
 
 export const TransactionHistoryScreen = () => {
-  const transactions = DUMMY_TRANSACTION;
-  const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  console.log("🚀 ~ TransactionHistoryScreen ~ transactions:", transactions);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [showFullImage, setShowFullImage] = useState(false);
   const [fullImageUri, setFullImageUri] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Data contoh transaksi dengan detail lengkap
-  const transactionData = transactions.map((transaction: any) => ({
-    ...transaction,
-    date: "2023-05-15",
-    paymentMethod: "Transfer Bank BCA",
-    paymentProof:
-      "https://mediakonsumen.com/files/2024/10/Screenshot_20240920-030802-3.jpg",
-    status: "Completed",
-    shippingAddress: "Jl. Contoh No. 123, Jakarta",
-  }));
+  // Fungsi untuk mengambil riwayat transaksi
+  const fetchTransactionHistory = async () => {
+    if (!auth.currentUser) {
+      Alert.alert("Error", "Anda harus login terlebih dahulu.");
+      return;
+    }
+
+    setLoading(true);
+    const result = await getTransactionHistory(auth.currentUser.uid);
+    if (result.success) {
+      setTransactions(result.data || []);
+    } else {
+      Alert.alert("Error", result.error || "Gagal memuat riwayat transaksi");
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchTransactionHistory();
+  }, []);
 
   const handleShowFullImage = (uri: string) => {
     setFullImageUri(uri);
     setShowFullImage(true);
   };
 
-  const renderTransactionItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.transactionItem}
-      onPress={() => setSelectedTransaction(item)}
-    >
-      <View style={styles.transactionHeader}>
-        <Text style={styles.transactionDate}>{item.date}</Text>
-        <Text style={styles.transactionStatus}>{item.status}</Text>
-      </View>
+  const renderTransactionItem = ({ item }: { item: any }) => {
+    // Pastikan price adalah angka
+    const totalPrice = parseFloat(item.total);
+    if (isNaN(totalPrice)) {
+      return <Text>Invalid Price</Text>; // Tampilkan pesan jika harga tidak valid
+    }
 
-      <View style={styles.productContainer}>
-        <Image source={{ uri: item.image }} style={styles.productImage} />
-        <View style={styles.productInfo}>
-          <Text style={styles.productName}>{item.name}</Text>
-          <Text style={styles.productPrice}>{formatPrice(item.price)}</Text>
-          <Text style={styles.productQuantity}>Qty: {item.quantity}</Text>
+    return (
+      <TouchableOpacity
+        style={styles.transactionItem}
+        onPress={() => setSelectedTransaction(item)}
+      >
+        <View style={styles.transactionHeader}>
+          <Text style={styles.transactionDate}>{item.date}</Text>
+          <Text style={styles.transactionStatus}>{item.status}</Text>
         </View>
-      </View>
 
-      <View style={styles.transactionFooter}>
-        <Text style={styles.paymentMethod}>
-          <MaterialIcons name="payment" size={16} color="#666" />{" "}
-          {item.paymentMethod}
-        </Text>
-        <Text style={styles.totalText}>
-          Total: {formatPrice(item.price * item.quantity)}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={styles.productContainer}>
+          <Image source={{ uri: item.image }} style={styles.productImage} />
+          <View style={styles.productInfo}>
+            <Text style={styles.productName}>{item.name}</Text>
+            <Text style={styles.productPrice}>{formatPrice(totalPrice)}</Text>
+            <Text style={styles.productQuantity}>Qty: {item.quantity}</Text>
+          </View>
+        </View>
+
+        <View style={styles.transactionFooter}>
+          <Text style={styles.paymentMethod}>
+            <MaterialIcons name="payment" size={16} color="#666" />{" "}
+            {item.paymentMethod}
+          </Text>
+          <Text style={styles.totalText}>
+            Total: {formatPrice(item.price * item.quantity)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const TransactionDetailModal = ({
     selectedTransaction,
@@ -132,7 +155,7 @@ export const TransactionHistoryScreen = () => {
             </View>
 
             <Text style={styles.itemsTitle}>Item yang Dibeli</Text>
-            {transactionData
+            {transactions
               .filter((t: any) => t.date === selectedTransaction?.date)
               .map((item: any) => (
                 <View key={item.id} style={styles.detailItem}>
@@ -173,7 +196,7 @@ export const TransactionHistoryScreen = () => {
               <Text style={styles.grandTotalLabel}>Total Pembayaran</Text>
               <Text style={styles.grandTotal}>
                 {formatPrice(
-                  transactionData
+                  transactions
                     .filter((t: any) => t.date === selectedTransaction?.date)
                     .reduce(
                       (sum: any, item: any) => sum + item.price * item.quantity,
@@ -188,13 +211,22 @@ export const TransactionHistoryScreen = () => {
     </Modal>
   );
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchTransactionHistory();
+    setRefreshing(false);
+  };
+
   return (
     <View style={styles.container}>
       <FlatList
-        data={transactionData}
+        data={transactions}
         renderItem={renderTransactionItem}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       />
 
       <TransactionDetailModal

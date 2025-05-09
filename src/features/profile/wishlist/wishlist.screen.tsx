@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,102 +6,178 @@ import {
   FlatList,
   Image,
   TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { formatPrice } from "../../../utils";
-
-interface Product {
-  id: number;
-  name: string;
-  price: number;
-  stock: number;
-  image: string;
-  category: string;
-  quantity: number;
-}
+import {
+  getUserWishlist,
+  removeFromWishlistFirebase,
+} from "../../../../firebase";
 
 export const WishlistScreen = ({ route, navigation }: any) => {
-  // Data dummy produk emas
-  const [wishlist, setWishlist] = useState<Product[]>([
-    {
-      id: 1,
-      name: "Emas Batangan 1 Gram",
-      price: 985000,
-      quantity: 1,
-      image:
-        "https://www.logammulia.com/uploads/ngc_master_item/5cdcae8ad46b6_20190516072754-2.jpg",
-      category: "Batangan",
-      stock: 15,
-    },
-    {
-      id: 8,
-      name: "Emas Koin 0.2 Gram",
-      category: "Koin",
-      price: 500000,
-      quantity: 1,
-      stock: 25,
-      image:
-        "https://www.static-src.com/wcsstore/Indraprastha/images/catalog/full//catalog-image/108/MTA-150699626/idn_bulion_citraperkasa_idn_bulion_angpao_naga_koin_emas_logam_mulia_-0-2_g_-_24k_-_999-9_gold-_full09_isgvag1j.jpg",
-    },
-    {
-      id: 9,
-      name: "Emas Koin 0.5 Gram",
-      category: "Koin",
-      price: 990000,
-      quantity: 3,
-      stock: 18,
-      image:
-        "https://images.tokopedia.net/img/cache/700/VqbcmM/2021/2/13/04829d0c-a545-40c7-a88d-7f688b136c51.jpg",
-    },
-  ]);
+  const [wishlist, setWishlist] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<null | string>(null);
+  const [refreshing, setRefreshing] = useState(false); // State untuk refresh control
 
-  const removeFromWishlist = (id: number) => {
-    setWishlist((prev) => prev.filter((item) => item.id !== id));
+  // Fungsi untuk memuat wishlist
+  const loadWishlist = async () => {
+    try {
+      const items = await getUserWishlist();
+      setWishlist(items);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to load wishlist:", err);
+      setError("Gagal memuat wishlist. Silakan coba lagi.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
-  // Hitung total harga semua item di wishlist
-  const totalPrice = wishlist.reduce((sum: number, item: Product) => {
+  // Load wishlist saat komponen mount
+  useEffect(() => {
+    loadWishlist();
+  }, []);
+
+  // Handle refresh saat di tarik ke bawah
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadWishlist();
+  };
+
+  // Load wishlist dari Firebase saat komponen mount
+  useEffect(() => {
+    const loadWishlist = async () => {
+      try {
+        const items = await getUserWishlist();
+        setWishlist(items);
+        setError(null);
+      } catch (err) {
+        console.error("Failed to load wishlist:", err);
+        setError("Gagal memuat wishlist. Silakan coba lagi.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadWishlist();
+  }, []);
+
+  // Handle remove item dari wishlist
+  const removeFromWishlist = async (id: string) => {
+    try {
+      setWishlist((prev: any) => prev.filter((item: any) => item.id !== id));
+      await removeFromWishlistFirebase(id);
+    } catch (err) {
+      console.error("Failed to remove item:", err);
+      setError("Gagal menghapus item. Silakan coba lagi.");
+      // Rollback UI jika gagal
+      const items = await getUserWishlist();
+      setWishlist(items);
+    }
+  };
+
+  const totalPrice = wishlist.reduce((sum: any, item: any) => {
     return sum + item.price * item.quantity;
   }, 0);
 
-  const renderItem = ({ item }: { item: Product }) => (
-    <View style={styles.card}>
-      <Image source={{ uri: item.image }} style={styles.image} />
-      <View style={styles.details}>
-        <Text style={styles.category}>{item.category}</Text>
-        <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.price}>
-          Rp {item.price.toLocaleString("id-ID")}
-        </Text>
-        <View style={styles.stockContainer}>
-          <Text style={styles.stock}>Stok: {item.stock}</Text>
-          <Text style={styles.quantity}>Qty: {item.quantity}</Text>
+  const renderItem = ({ item }: any) => {
+    // Pastikan imageUrl ada sebelum memanggil split
+    const imageUrl = item?.image; // Ambil URL gambar dari produk
+
+    // Periksa apakah imageUrl ada sebelum mencoba melakukan split
+    const fileId = imageUrl
+      ? imageUrl.split("/file/d/")[1]?.split("/")[0]
+      : null;
+
+    // Format ulang URL jika fileId ada
+    const displayUrl = fileId
+      ? `https://drive.google.com/uc?export=view&id=${fileId}`
+      : null;
+
+    return (
+      <View style={styles.card}>
+        <Image
+          source={{ uri: displayUrl || item.image }}
+          style={styles.image}
+        />
+        <View style={styles.details}>
+          <Text style={styles.category}>{item.category}</Text>
+          <Text style={styles.name}>{item.name}</Text>
+          <Text style={styles.price}>
+            Rp {item.price.toLocaleString("id-ID")}
+          </Text>
+          <View style={styles.stockContainer}>
+            <Text style={styles.stock}>Stok: {item.stock}</Text>
+            <Text style={styles.quantity}>Qty: {item.quantity}</Text>
+          </View>
+          <Text style={styles.totalPrice}>
+            Total: Rp {(item.price * item.quantity).toLocaleString("id-ID")}
+          </Text>
         </View>
-        <Text style={styles.totalPrice}>
-          Total: Rp {(item.price * item.quantity).toLocaleString("id-ID")}
-        </Text>
+        <TouchableOpacity
+          style={styles.removeButton}
+          onPress={() => removeFromWishlist(item.id)}
+        >
+          <Text style={styles.removeIcon}>×</Text>
+        </TouchableOpacity>
       </View>
-      <TouchableOpacity
-        style={styles.removeButton}
-        onPress={() => removeFromWishlist(item.id)}
-      >
-        <Text style={styles.removeIcon}>×</Text>
-      </TouchableOpacity>
-    </View>
-  );
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" color="#FFD700" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => navigation.replace("Wishlist")}
+        >
+          <Text style={styles.retryButtonText}>Coba Lagi</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       {wishlist.length === 0 ? (
-        <View style={styles.empty}>
+        <View style={[styles.empty, styles.center]}>
           <Text style={styles.emptyText}>Belum ada item di wishlist</Text>
+          <TouchableOpacity
+            style={styles.shopButton}
+            onPress={() => navigation.navigate("HomeStack", { screen: "Home" })}
+          >
+            <Text style={styles.shopButtonText}>Belanja Sekarang</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <View style={styles.container}>
           <FlatList
             data={wishlist}
             renderItem={renderItem}
-            keyExtractor={(item) => item.id.toString()}
+            keyExtractor={(item: any) => item.id}
             contentContainerStyle={styles.list}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={["#FFD700"]} // Warna animasi refresh (opsional)
+                tintColor="#FFD700" // Warna ikon refresh (iOS)
+                title="Memuat..." // Teks yang ditampilkan (iOS)
+                titleColor="#666" // Warna teks (iOS)
+              />
+            }
           />
           <View style={styles.totalContainer}>
             <Text style={styles.totalLabel}>Total Wishlist:</Text>
@@ -117,6 +193,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f5f5f5",
+  },
+  center: {
+    justifyContent: "center",
+    alignItems: "center",
   },
   header: {
     fontSize: 22,
@@ -196,12 +276,12 @@ const styles = StyleSheet.create({
   },
   empty: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    padding: 20,
   },
   emptyText: {
     fontSize: 16,
     color: "#999",
+    marginBottom: 20,
   },
   list: {
     paddingBottom: 20,
@@ -229,5 +309,32 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "#FFD700",
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#ff4444",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  retryButton: {
+    backgroundColor: "#FFD700",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  shopButton: {
+    backgroundColor: "#FFD700",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  shopButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
   },
 });

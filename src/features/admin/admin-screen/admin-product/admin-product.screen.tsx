@@ -14,25 +14,16 @@ import { DUMMY_PRODUCTS } from "../../../../dummy";
 import { addInitialProducts, getAllProducts } from "../../../../../firebase";
 import { ActivityIndicator } from "react-native-paper";
 
-interface Product {
-  id: number;
-  name: string;
-  category: string;
-  price: number;
-  stock: number;
-  image: string;
-  description: string;
-}
-
 export const AdminProductScreen = ({ navigation }: any) => {
-  const [products, setProducts] = useState<any[]>();
+  const [products, setProducts] = useState<any>();
+  console.log("🚀 ~ AdminProductScreen ~ products:", products);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [sortBy, setSortBy] = useState<string>("name");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const categories = ["All", ...new Set(DUMMY_PRODUCTS.map((p) => p.category))];
 
-  const filteredProducts = products?.filter((product) => {
+  const filteredProducts = products?.filter((product: any) => {
     const matchesCategory =
       selectedCategory === "All" || product.category === selectedCategory;
     const matchesSearch =
@@ -56,7 +47,7 @@ export const AdminProductScreen = ({ navigation }: any) => {
       try {
         // addInitialProducts(); // Tambahkan data awal jika belum ada
         const productsData = await getAllProducts(); // Ambil data produk
-        console.log("🚀 ~ fetchProducts ~ productsData:", productsData);
+        // console.log("🚀 ~ fetchProducts ~ productsData:", productsData);
 
         if (productsData) {
           setProducts(productsData); // Simpan data produk ke dalam state
@@ -73,6 +64,17 @@ export const AdminProductScreen = ({ navigation }: any) => {
     fetchProducts(); // Panggil fungsi untuk mengambil data produk saat komponen pertama kali dimuat
   }, []);
 
+  // // Pastikan imageUrl ada sebelum memanggil split
+  // const imageUrl = products?.image; // Ambil URL gambar dari produk pertama
+
+  // // Periksa apakah imageUrl ada sebelum mencoba melakukan split
+  // const fileId = imageUrl ? imageUrl.split("/file/d/")[1]?.split("/")[0] : null;
+
+  // // Format ulang URL jika fileId ada
+  // const displayUrl = fileId
+  //   ? `https://drive.google.com/uc?export=view&id=${fileId}`
+  //   : null;
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -81,30 +83,53 @@ export const AdminProductScreen = ({ navigation }: any) => {
     }).format(price);
   };
 
-  const renderProductItem = ({ item }: { item: Product }) => (
-    <View style={styles.productCard}>
-      <Image source={{ uri: item.image }} style={styles.productImage} />
-      <View style={styles.productInfo}>
-        <Text style={styles.productName}>{item.name}</Text>
-        <Text style={styles.productCategory}>{item.category}</Text>
-        <Text style={styles.productPrice}>{formatPrice(item.price)}</Text>
-        <Text style={styles.productStock}>Stock: {item.stock}</Text>
+  const renderProductItem = ({ item }: { item: any }) => {
+    // Pastikan imageUrl ada sebelum memanggil split
+    const imageUrl = item?.image; // Ambil URL gambar dari produk
+
+    // Periksa apakah imageUrl ada sebelum mencoba melakukan split
+    const fileId = imageUrl
+      ? imageUrl.split("/file/d/")[1]?.split("/")[0]
+      : null;
+
+    // Format ulang URL jika fileId ada
+    const displayUrl = fileId
+      ? `https://drive.google.com/uc?export=view&id=${fileId}`
+      : null;
+
+    return (
+      <View style={styles.productCard}>
+        {/* Hanya tampilkan gambar jika displayUrl valid */}
+        {displayUrl ? (
+          <Image source={{ uri: displayUrl }} style={styles.productImage} />
+        ) : (
+          <Image
+            source={require("./../../../../../assets/no_image.png")}
+            style={styles.productImage}
+          />
+        )}
+        <View style={styles.productInfo}>
+          <Text style={styles.productName}>{item.name}</Text>
+          <Text style={styles.productCategory}>{item.category}</Text>
+          <Text style={styles.productPrice}>{formatPrice(item.price)}</Text>
+          <Text style={styles.productStock}>Stock: {item.stock}</Text>
+        </View>
+        <View style={styles.productActions}>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() =>
+              navigation.navigate("AdminProductEdit", { product: item })
+            }
+          >
+            <Text style={styles.buttonText}>Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.deleteButton}>
+            <Text style={styles.buttonText}>Delete</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-      <View style={styles.productActions}>
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={() =>
-            navigation.navigate("AdminProductEdit", { product: item })
-          }
-        >
-          <Text style={styles.buttonText}>Edit</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteButton}>
-          <Text style={styles.buttonText}>Delete</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -150,9 +175,9 @@ export const AdminProductScreen = ({ navigation }: any) => {
         </ScrollView>
 
         {/* Sort Options */}
-        <View style={styles.sortContainer}>
-          <Text style={styles.sortLabel}>Sorted By:</Text>
-          <View style={styles.sortButtonsContainer}>
+        {/* <View style={styles.sortContainer}> */}
+        {/* <Text style={styles.sortLabel}>Sorted By:</Text> */}
+        {/* <View style={styles.sortButtonsContainer}>
             <TouchableOpacity
               style={[
                 styles.sortButton,
@@ -204,11 +229,10 @@ export const AdminProductScreen = ({ navigation }: any) => {
                 Stock
               </Text>
             </TouchableOpacity>
-          </View>
-        </View>
+          </View> */}
+        {/* </View> */}
       </View>
 
-      {/* Product List */}
       {!isLoading ? (
         <FlatList
           data={sortedProducts}
@@ -223,7 +247,6 @@ export const AdminProductScreen = ({ navigation }: any) => {
         <ActivityIndicator size="large" color="#0000ff" />
       )}
 
-      {/* Add Product Button */}
       <TouchableOpacity
         // onPress={() => navigation.navigate("AdminProductEdit")}
         style={styles.addButton}

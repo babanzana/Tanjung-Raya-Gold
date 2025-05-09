@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   Image,
+  Alert,
 } from "react-native";
 import {
   Text,
@@ -16,39 +17,45 @@ import {
   Divider,
 } from "react-native-paper";
 import { DUMMY_TRANSACTION } from "../../../../dummy";
-
-// Define types
-interface TransactionItem {
-  id: number;
-  nama: string;
-  harga: number;
-  qty: number;
-  totalHarga: number;
-  image: string;
-}
-
-interface Transaction {
-  id: number;
-  tanggal: string;
-  nama: string;
-  alamat: any;
-  items: TransactionItem[];
-  total: number;
-  status: any;
-  metodePembayaran: string;
-  buktiPembayaran: string;
-}
+import {
+  getAllTransactionHistory,
+  getTransactionHistory,
+} from "../../../../../firebase";
 
 export const AdminTransactionsScreen = () => {
-  const [transactions, setTransactions] =
-    useState<Transaction[]>(DUMMY_TRANSACTION);
-  const [selectedTransaction, setSelectedTransaction] =
-    useState<Transaction | null>(null);
+  const [transactions, setTransactions] = useState<any[]>(DUMMY_TRANSACTION);
+  const [selectedTransaction, setSelectedTransaction] = useState<any | null>(
+    null
+  );
   const [detailVisible, setDetailVisible] = useState(false);
   const [imageVisible, setImageVisible] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const showDetailModal = (transaction: Transaction) => {
+  // Ambil transaksi dari Firebase saat komponen dimuat
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      setLoading(true);
+      console.log("Fetching transactions...");
+
+      const result = await getAllTransactionHistory();
+      console.log("Transaction result:", result); // Debug hasil query
+
+      if (result.success) {
+        setTransactions(result.data || []);
+      } else {
+        console.error("Error fetching transactions:", result.error);
+        console.error("Full error:", result.fullError); // Jika ada
+        Alert.alert("Error", result.error || "Failed to load transactions");
+      }
+
+      setLoading(false);
+    };
+
+    fetchTransactions();
+  }, []);
+
+  const showDetailModal = (transaction: any) => {
     setSelectedTransaction(transaction);
     setDetailVisible(true);
   };
@@ -80,7 +87,7 @@ export const AdminTransactionsScreen = () => {
     }).format(amount);
   };
 
-  const updateStatus = (newStatus: Transaction["status"]) => {
+  const updateStatus = (newStatus: any["status"]) => {
     if (!selectedTransaction) return;
 
     const updatedTransactions = transactions.map((t) =>
@@ -111,43 +118,47 @@ export const AdminTransactionsScreen = () => {
   return (
     <PaperProvider>
       <ScrollView contentContainerStyle={styles.container}>
-        {transactions.map((transaction) => (
-          <TouchableOpacity
-            key={transaction.id}
-            onPress={() => showDetailModal(transaction)}
-          >
-            <Card style={styles.card}>
-              <Card.Content>
-                <View style={styles.cardHeader}>
-                  <Text variant="titleMedium">{transaction.nama}</Text>
-                  <Text
-                    style={[
-                      styles.status,
-                      { color: getStatusColor(transaction.status) },
-                    ]}
-                  >
-                    {transaction.status}
-                  </Text>
-                </View>
+        {loading ? (
+          <Text>Loading...</Text> // Menampilkan loading jika data masih diambil
+        ) : (
+          transactions.map((transaction) => (
+            <TouchableOpacity
+              key={transaction.id}
+              onPress={() => showDetailModal(transaction)}
+            >
+              <Card style={styles.card}>
+                <Card.Content>
+                  <View style={styles.cardHeader}>
+                    <Text variant="titleMedium">{transaction.nama}</Text>
+                    <Text
+                      style={[
+                        styles.status,
+                        { color: getStatusColor(transaction.status) },
+                      ]}
+                    >
+                      {transaction.status}
+                    </Text>
+                  </View>
 
-                <Text variant="bodyMedium">
-                  {formatDate(transaction.tanggal)}
-                </Text>
-
-                <View style={styles.cardFooter}>
                   <Text variant="bodyMedium">
-                    {transaction.items.length} item
+                    {formatDate(transaction.tanggal)}
                   </Text>
-                  <Text variant="titleSmall" style={styles.total}>
-                    {formatCurrency(transaction.total)}
-                  </Text>
-                </View>
 
-                <Text variant="bodyMedium">{transaction.metodePembayaran}</Text>
-              </Card.Content>
-            </Card>
-          </TouchableOpacity>
-        ))}
+                  <View style={styles.cardFooter}>
+                    <Text variant="bodyMedium">item</Text>
+                    <Text variant="titleSmall" style={styles.total}>
+                      {formatCurrency(transaction.total)}
+                    </Text>
+                  </View>
+
+                  <Text variant="bodyMedium">
+                    {transaction.metodePembayaran}
+                  </Text>
+                </Card.Content>
+              </Card>
+            </TouchableOpacity>
+          ))
+        )}
       </ScrollView>
 
       <Modal
@@ -217,7 +228,7 @@ export const AdminTransactionsScreen = () => {
 
                 <Text style={styles.sectionHeader}>Items:</Text>
 
-                {selectedTransaction.items.map((item) => (
+                {selectedTransaction.items.map((item: any) => (
                   <View key={item.id} style={styles.itemCard}>
                     <Image
                       source={{ uri: item.image }}

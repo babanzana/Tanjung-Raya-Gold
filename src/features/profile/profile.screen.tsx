@@ -228,7 +228,7 @@ export const ProfileScreen = ({ route, navigation }: any) => {
       {/* User Info Section */}
       <View style={styles.userInfoContainer}>
         <Image
-          source={{ uri: "https://randomuser.me/api/portraits/men/1.jpg" }}
+          source={require("../../../assets/profile.jpg")}
           style={styles.profileImage}
         />
         <Text style={styles.userName}>{user.fullName}</Text>

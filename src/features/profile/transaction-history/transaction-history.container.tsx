@@ -1,5 +1,5 @@
 import { TransactionHistoryScreen } from "./transaction-history.screen";
 
 export const TransactionHistoryContainer = ({ route, navigation }: any) => {
-  return <TransactionHistoryScreen />;
+  return <TransactionHistoryScreen route={route} navigation={navigation} />;
 };

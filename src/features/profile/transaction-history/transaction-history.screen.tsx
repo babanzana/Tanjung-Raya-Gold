@@ -15,9 +15,9 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { formatPrice } from "../../../utils"; // Import fungsi getTransactionHistory dari firebase
 import { auth, getTransactionHistory } from "../../../../firebase";
 
-export const TransactionHistoryScreen = () => {
+export const TransactionHistoryScreen = ({ route, navigation }: any) => {
   const [transactions, setTransactions] = useState<any[]>([]);
-  console.log("🚀 ~ TransactionHistoryScreen ~ transactions:", transactions);
+  // console.log("🚀 ~ TransactionHistoryScreen ~ transactions:", transactions);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [showFullImage, setShowFullImage] = useState(false);
   const [fullImageUri, setFullImageUri] = useState("");
@@ -36,7 +36,17 @@ export const TransactionHistoryScreen = () => {
     if (result.success) {
       setTransactions(result.data || []);
     } else {
-      Alert.alert("Error", result.error || "Gagal memuat riwayat transaksi");
+      Alert.alert(
+        "No Transaction History",
+        "Silahkan berbelanja terlebih dahulu.",
+        [
+          {
+            text: "Belanja Sekarang",
+            onPress: () => navigation.navigate("HomeStack", { screen: "Home" }),
+          },
+        ],
+        { cancelable: false }
+      );
     }
     setLoading(false);
   };
@@ -51,11 +61,13 @@ export const TransactionHistoryScreen = () => {
   };
 
   const renderTransactionItem = ({ item }: { item: any }) => {
-    // Pastikan price adalah angka
-    const totalPrice = parseFloat(item.total);
-    if (isNaN(totalPrice)) {
-      return <Text>Invalid Price</Text>; // Tampilkan pesan jika harga tidak valid
-    }
+    const formattedDate = new Date(item.tanggal).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
     return (
       <TouchableOpacity
@@ -63,27 +75,66 @@ export const TransactionHistoryScreen = () => {
         onPress={() => setSelectedTransaction(item)}
       >
         <View style={styles.transactionHeader}>
-          <Text style={styles.transactionDate}>{item.date}</Text>
-          <Text style={styles.transactionStatus}>{item.status}</Text>
+          <Text style={styles.transactionDate}>{formattedDate}</Text>
+          <Text
+            style={[
+              styles.transactionStatus,
+              item.status === "Pending"
+                ? styles.statusPending
+                : item.status === "Completed"
+                ? styles.statusCompleted
+                : styles.statusCancelled,
+            ]}
+          >
+            {item.status}
+          </Text>
         </View>
 
-        <View style={styles.productContainer}>
-          <Image source={{ uri: item.image }} style={styles.productImage} />
-          <View style={styles.productInfo}>
-            <Text style={styles.productName}>{item.name}</Text>
-            <Text style={styles.productPrice}>{formatPrice(totalPrice)}</Text>
-            <Text style={styles.productQuantity}>Qty: {item.quantity}</Text>
+        {/* Display first product as the main item */}
+        {item.items.length > 0 && (
+          <View style={styles.productContainer}>
+            {/* Ambil gambar produk pertama */}
+            {(() => {
+              const imageUrl = item.items[0]?.image; // Ambil URL gambar dari produk pertama
+
+              // Periksa apakah imageUrl ada sebelum mencoba melakukan split
+              const fileId = imageUrl
+                ? imageUrl.split("/file/d/")[1]?.split("/")[0]
+                : null;
+
+              // Format ulang URL jika fileId ada
+              const displayUrl = fileId
+                ? `https://drive.google.com/uc?export=view&id=${fileId}`
+                : null;
+
+              return (
+                <Image
+                  source={{ uri: displayUrl || item.items[0]?.image }} // Gunakan displayUrl jika ada, atau fallback ke item.items[0].image
+                  style={styles.productImage}
+                />
+              );
+            })()}
+
+            <View style={styles.productInfo}>
+              <Text style={styles.productName}>{item.items[0]?.nama}</Text>
+              <Text style={styles.productPrice}>
+                {formatPrice(item.items[0]?.harga)} x {item.items[0]?.qty}
+              </Text>
+              {item.items.length > 1 && (
+                <Text style={styles.additionalItems}>
+                  +{item.items.length - 1} item lainnya
+                </Text>
+              )}
+            </View>
           </View>
-        </View>
+        )}
 
         <View style={styles.transactionFooter}>
           <Text style={styles.paymentMethod}>
             <MaterialIcons name="payment" size={16} color="#666" />{" "}
-            {item.paymentMethod}
+            {item.metodePembayaran}
           </Text>
-          <Text style={styles.totalText}>
-            Total: {formatPrice(item.price * item.quantity)}
-          </Text>
+          <Text style={styles.totalText}>Total: {formatPrice(item.total)}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -97,119 +148,163 @@ export const TransactionHistoryScreen = () => {
     selectedTransaction: any;
     onClose: () => void;
     onShowFullImage: (uri: string) => void;
-  }) => (
-    <Modal
-      visible={!!selectedTransaction}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Detail Transaksi</Text>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <MaterialIcons name="close" size={24} color="#333" />
-            </TouchableOpacity>
-          </View>
+  }) => {
+    if (!selectedTransaction) return null;
 
-          <ScrollView style={styles.modalContent}>
-            <View style={styles.detailSection}>
-              <Text style={styles.detailLabel}>Tanggal</Text>
-              <Text style={styles.detailValue}>
-                {selectedTransaction?.date}
-              </Text>
+    const formattedDate = new Date(
+      selectedTransaction.tanggal
+    ).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    return (
+      <Modal
+        visible={!!selectedTransaction}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={onClose}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Detail Transaksi</Text>
+              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                <MaterialIcons name="close" size={24} color="#333" />
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.detailSection}>
-              <Text style={styles.detailLabel}>Status</Text>
-              <Text
-                style={[
-                  styles.detailValue,
-                  styles[
-                    `status${
-                      selectedTransaction?.status as
-                        | "Completed"
-                        | "Pending"
-                        | "Cancelled"
-                    }`
-                  ],
-                ]}
-              >
-                {selectedTransaction?.status}
-              </Text>
-            </View>
+            <ScrollView style={styles.modalContent}>
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>ID Transaksi</Text>
+                <Text style={styles.detailValue}>{selectedTransaction.id}</Text>
+              </View>
 
-            <View style={styles.detailSection}>
-              <Text style={styles.detailLabel}>Metode Pembayaran</Text>
-              <Text style={styles.detailValue}>
-                {selectedTransaction?.paymentMethod}
-              </Text>
-            </View>
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Tanggal</Text>
+                <Text style={styles.detailValue}>{formattedDate}</Text>
+              </View>
 
-            <View style={styles.detailSection}>
-              <Text style={styles.detailLabel}>Alamat Pengiriman</Text>
-              <Text style={styles.detailValue}>
-                {selectedTransaction?.shippingAddress}
-              </Text>
-            </View>
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Status</Text>
+                <Text
+                  style={[
+                    styles.detailValue,
+                    selectedTransaction.status === "Pending"
+                      ? styles.statusPending
+                      : selectedTransaction.status === "Completed"
+                      ? styles.statusCompleted
+                      : styles.statusCancelled,
+                  ]}
+                >
+                  {selectedTransaction.status}
+                </Text>
+              </View>
 
-            <Text style={styles.itemsTitle}>Item yang Dibeli</Text>
-            {transactions
-              .filter((t: any) => t.date === selectedTransaction?.date)
-              .map((item: any) => (
-                <View key={item.id} style={styles.detailItem}>
-                  <Image
-                    source={{ uri: item.image }}
-                    style={styles.detailImage}
-                  />
-                  <View style={styles.detailItemInfo}>
-                    <Text style={styles.detailItemName}>{item.name}</Text>
-                    <Text style={styles.detailItemPrice}>
-                      {formatPrice(item.price)} x {item.quantity}
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Nama Pembeli</Text>
+                <Text style={styles.detailValue}>
+                  {selectedTransaction.nama}
+                </Text>
+              </View>
+
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Metode Pembayaran</Text>
+                <Text style={styles.detailValue}>
+                  {selectedTransaction.metodePembayaran}
+                </Text>
+              </View>
+
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Alamat Pengiriman</Text>
+                <Text style={styles.detailValue}>
+                  {selectedTransaction.alamat}
+                </Text>
+              </View>
+
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Catatan</Text>
+                <Text style={styles.detailValue}>
+                  {selectedTransaction.notes || "-"}
+                </Text>
+              </View>
+
+              <Text style={styles.itemsTitle}>
+                Item yang Dibeli ({selectedTransaction.items.length})
+              </Text>
+              {selectedTransaction.items.map((item: any) => {
+                // Pastikan imageUrl ada sebelum memanggil split
+                const imageUrl = item?.image; // Ambil URL gambar dari produk
+
+                // Periksa apakah imageUrl ada sebelum mencoba melakukan split
+                const fileId = imageUrl
+                  ? imageUrl.split("/file/d/")[1]?.split("/")[0]
+                  : null;
+
+                // Format ulang URL jika fileId ada
+                const displayUrl = fileId
+                  ? `https://drive.google.com/uc?export=view&id=${fileId}`
+                  : imageUrl; // Fallback ke URL asli jika bukan Google Drive
+
+                return (
+                  <View key={item.id} style={styles.detailItem}>
+                    <Image
+                      source={{
+                        uri: displayUrl || "https://via.placeholder.com/150",
+                      }} // Fallback image jika URL tidak valid
+                      style={styles.detailImage}
+                      onError={(e) =>
+                        console.log("Error loading image:", e.nativeEvent.error)
+                      }
+                    />
+                    <View style={styles.detailItemInfo}>
+                      <Text style={styles.detailItemName}>{item.nama}</Text>
+                      <Text style={styles.detailItemCategory}>
+                        {item.category}
+                      </Text>
+                      <Text style={styles.detailItemPrice}>
+                        {formatPrice(item.harga)} x {item.qty}
+                      </Text>
+                    </View>
+                    <Text style={styles.detailItemTotal}>
+                      {formatPrice(item.totalHarga)}
                     </Text>
                   </View>
-                  <Text style={styles.detailItemTotal}>
-                    {formatPrice(item.price * item.quantity)}
-                  </Text>
-                </View>
-              ))}
+                );
+              })}
 
-            {selectedTransaction?.paymentProof && (
-              <>
-                <Text style={styles.itemsTitle}>Bukti Pembayaran</Text>
-                <TouchableOpacity
-                  onPress={() =>
-                    onShowFullImage(selectedTransaction.paymentProof)
-                  }
-                >
-                  <Image
-                    source={{ uri: selectedTransaction.paymentProof }}
-                    style={styles.paymentProof}
-                    resizeMode="contain"
-                  />
-                </TouchableOpacity>
-              </>
-            )}
+              {selectedTransaction.buktiPembayaran && (
+                <>
+                  <Text style={styles.itemsTitle}>Bukti Pembayaran</Text>
+                  <TouchableOpacity
+                    onPress={() =>
+                      onShowFullImage(selectedTransaction.buktiPembayaran)
+                    }
+                  >
+                    <Image
+                      source={{ uri: selectedTransaction.buktiPembayaran }}
+                      style={styles.paymentProof}
+                      resizeMode="contain"
+                    />
+                  </TouchableOpacity>
+                </>
+              )}
 
-            <View style={styles.totalContainer}>
-              <Text style={styles.grandTotalLabel}>Total Pembayaran</Text>
-              <Text style={styles.grandTotal}>
-                {formatPrice(
-                  transactions
-                    .filter((t: any) => t.date === selectedTransaction?.date)
-                    .reduce(
-                      (sum: any, item: any) => sum + item.price * item.quantity,
-                      0
-                    )
-                )}
-              </Text>
-            </View>
-          </ScrollView>
+              <View style={styles.totalContainer}>
+                <Text style={styles.grandTotalLabel}>Total Pembayaran</Text>
+                <Text style={styles.grandTotal}>
+                  {formatPrice(selectedTransaction.total)}
+                </Text>
+              </View>
+            </ScrollView>
+          </View>
         </View>
-      </View>
-    </Modal>
-  );
+      </Modal>
+    );
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -235,7 +330,6 @@ export const TransactionHistoryScreen = () => {
         onShowFullImage={handleShowFullImage}
       />
 
-      {/* Modal Gambar Full Screen */}
       <Modal visible={showFullImage} transparent={true}>
         <View style={styles.fullImageContainer}>
           <TouchableOpacity
@@ -479,5 +573,53 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.5)",
     borderRadius: 20,
     padding: 5,
+  }, // ... style yang sudah ada
+  alertContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    padding: 20,
+  },
+  alertContent: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 20,
+    width: "80%",
+    alignItems: "center",
+  },
+  // Perubahan pada empty text untuk alert
+  emptyText: {
+    fontSize: 16,
+    color: "#ff4444", // Warna merah untuk error
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  // Style tombol untuk alert
+  shopButton: {
+    backgroundColor: "#FFD700",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  shopButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  center: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  additionalItems: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 3,
+  },
+  detailItemCategory: {
+    fontSize: 12,
+    color: "#888",
+    marginBottom: 3,
   },
 });

@@ -58,31 +58,49 @@ export const HomeScreen = ({ navigation }: any) => {
     navigation.navigate("ProductDetail", { product });
   };
 
-  const renderProductItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={[
-        styles.productCard,
-        item.stock === 0 && styles.outOfStock, // Ubah tampilan jika stok 0
-      ]}
-      onPress={() => handleProductPress(item)}
-      disabled={item.stock === 0} // Nonaktifkan klik jika stok 0
-    >
-      <Image
-        source={{ uri: item.image }}
-        style={styles.productImage}
-        resizeMode="contain"
-      />
-      <View style={styles.productInfo}>
-        <Text style={styles.productName} numberOfLines={1}>
-          {item.name}
-        </Text>
-        <Text style={styles.productPrice}>{formatPrice(item.price)}</Text>
-        <View style={styles.productMeta}>
-          <Text style={styles.productStock}>Stok: {item.stock}</Text>
+  const renderProductItem = ({ item }: { item: any }) => {
+    // Pastikan imageUrl ada sebelum memanggil split
+    const imageUrl = item?.image; // Ambil URL gambar dari produk
+
+    // Periksa apakah imageUrl ada sebelum mencoba melakukan split
+    const fileId = imageUrl
+      ? imageUrl.split("/file/d/")[1]?.split("/")[0]
+      : null;
+
+    // Format ulang URL jika fileId ada
+    const displayUrl = fileId
+      ? `https://drive.google.com/uc?export=view&id=${fileId}`
+      : null;
+    return (
+      <TouchableOpacity
+        style={[
+          styles.productCard,
+          item.stock === 0 && styles.outOfStock, // Ubah tampilan jika stok 0
+        ]}
+        onPress={() => handleProductPress(item)}
+        disabled={item.stock === 0} // Nonaktifkan klik jika stok 0
+      >
+        <Image
+          source={
+            item.stock === 0
+              ? require("./../../../assets/sold.png")
+              : { uri: displayUrl || item.image }
+          }
+          style={styles.productImage}
+          resizeMode="contain"
+        />
+        <View style={styles.productInfo}>
+          <Text style={styles.productName} numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Text style={styles.productPrice}>{formatPrice(item.price)}</Text>
+          <View style={styles.productMeta}>
+            <Text style={styles.productStock}>Stok: {item.stock}</Text>
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   const onRefresh = async () => {
     setRefreshing(true); // Menandakan bahwa refresh sedang berjalan

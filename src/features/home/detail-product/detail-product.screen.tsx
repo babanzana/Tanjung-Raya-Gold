@@ -8,13 +8,16 @@ import {
   Alert,
 } from "react-native";
 import { Text, Button } from "react-native-paper";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatPrice } from "../../../utils";
 import {
   addToCart,
+  addToWishlist,
   auth,
   db,
   getCartItems,
+  isProductInWishlist,
+  removeFromWishlistFirebase,
   updateCartItemQuantity,
 } from "../../../../firebase";
 import { ref, set } from "@react-native-firebase/database";
@@ -83,6 +86,7 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
               {
                 text: "Lanjut Belanja",
                 style: "cancel",
+                onPress: () => navigation.goBack(),
               },
             ]
           );
@@ -199,22 +203,81 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
   //   }
   // };
 
-  const handleWishlist = () => {
-    setIsInWishlist(!isInWishlist);
-    Alert.alert(
-      isInWishlist ? "Dihapus dari Wishlist" : "Ditambahkan ke Wishlist",
-      isInWishlist
-        ? `${product.name} dihapus dari wishlist`
-        : `${product.name} ditambahkan ke wishlist`
-    );
+  // const handleWishlist = () => {
+  //   setIsInWishlist(!isInWishlist);
+  //   Alert.alert(
+  //     isInWishlist ? "Dihapus dari Wishlist" : "Ditambahkan ke Wishlist",
+  //     isInWishlist
+  //       ? `${product.name} dihapus dari wishlist`
+  //       : `${product.name} ditambahkan ke wishlist`
+  //   );
+  // };
+
+  const handleWishlist = async () => {
+    try {
+      if (isInWishlist) {
+        // Hapus dari wishlist
+        await removeFromWishlistFirebase(product.id);
+        Alert.alert(
+          "Dihapus dari Wishlist",
+          `${product.name} dihapus dari wishlist`
+        );
+      } else {
+        // Tambahkan ke wishlist
+        await addToWishlist({
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          image: product.image,
+          category: product.category,
+          stock: product.stock,
+          quantity: 1, // Default quantity
+        });
+        Alert.alert(
+          "Ditambahkan ke Wishlist",
+          `${product.name} ditambahkan ke wishlist`
+        );
+      }
+      // Update state setelah operasi Firebase berhasil
+      setIsInWishlist(!isInWishlist);
+    } catch (error) {
+      console.error("Error handling wishlist:", error);
+      // Tampilkan pesan error jika operasi gagal
+      Alert.alert("Error", "Gagal memproses wishlist. Silakan coba lagi.");
+      // Kembalikan ke state semula jika error
+      setIsInWishlist(isInWishlist);
+    }
   };
 
+  // Gunakan useEffect untuk mengecek status wishlist saat komponen mount
+  useEffect(() => {
+    const checkWishlistStatus = async () => {
+      try {
+        const exists = await isProductInWishlist(product.id);
+        setIsInWishlist(exists);
+      } catch (error) {
+        console.error("Error checking wishlist:", error);
+      }
+    };
+
+    checkWishlistStatus();
+  }, [product.id]);
+  // Pastikan imageUrl ada sebelum memanggil split
+  const imageUrl = product?.image; // Ambil URL gambar dari produk
+
+  // Periksa apakah imageUrl ada sebelum mencoba melakukan split
+  const fileId = imageUrl ? imageUrl.split("/file/d/")[1]?.split("/")[0] : null;
+
+  // Format ulang URL jika fileId ada
+  const displayUrl = fileId
+    ? `https://drive.google.com/uc?export=view&id=${fileId}`
+    : null;
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.detailContainer}>
           <Image
-            source={{ uri: product.image }}
+            source={{ uri: displayUrl || product.image }}
             style={styles.detailImage}
             resizeMode="contain"
           />

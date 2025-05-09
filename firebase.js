@@ -1,6 +1,16 @@
 // Firebase.js
 import { getApp, getApps, initializeApp } from "@firebase/app";
-import { getDatabase, ref, set, get, update, push } from "@firebase/database";
+import {
+  getDatabase,
+  ref,
+  set,
+  get,
+  update,
+  push,
+  remove,
+  query,
+  orderByChild,
+} from "@firebase/database";
 import {
   getAuth,
   initializeAuth,
@@ -11,7 +21,7 @@ import {
   getReactNativePersistence,
 } from "@firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { DUMMY_PRODUCTS } from "./src/dummy";
+// import { DUMMY_PRODUCTS } from "./src/dummy";
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -359,82 +369,46 @@ export const updateProductStock = async (productId, quantityPurchased) => {
   }
 };
 
-// Function to add transaction history and clear cart
-// export const addTransactionHistory = async (userId, transactionDetails) => {
-//   try {
-//     // Step 1: Add transaction to history
-//     const transactionRef = ref(db, `users/${userId}/transactions`);
-//     const newTransactionRef = push(transactionRef);
-
-//     const transactionData = {
-//       id: newTransactionRef.key, // Add transaction ID for reference
-//       total: transactionDetails.total,
-//       paymentMethod: transactionDetails.paymentMethod,
-//       address: transactionDetails.address,
-//       notes: transactionDetails.notes,
-//       date: Date.now(),
-//       status: "Pending",
-//       products: transactionDetails.products,
-//       paymentProof: transactionDetails.paymentProof || null, // Add payment proof if exists
-//     };
-
-//     await set(newTransactionRef, transactionData);
-
-//     // Step 2: Clear the user's cart after successful transaction
-//     const cartRef = ref(db, `users/${userId}/cart`);
-//     await set(cartRef, {}); // Set cart to empty object
-
-//     return {
-//       success: true,
-//       transactionId: newTransactionRef.key,
-//     };
-//   } catch (error) {
-//     console.error("Error in transaction process:", error);
-//     return {
-//       success: false,
-//       error: error.message,
-//     };
-//   }
-// };
-
-// Function to add transaction history, clear cart, and update stock
 export const addTransactionHistory = async (userId, transactionDetails) => {
   try {
-    // Step 1: Add transaction to history
     const transactionRef = ref(db, `users/${userId}/transactions`);
     const newTransactionRef = push(transactionRef);
 
+    // Format products to match dummy structure
+    const formattedItems = transactionDetails.products.map((product) => ({
+      id: product.id,
+      nama: product.name,
+      harga: product.price,
+      qty: product.quantity,
+      totalHarga: product.price * product.quantity,
+      image: product.image,
+      category: product.category, // Added category to match your cartItems structure
+    }));
+
     const transactionData = {
-      id: newTransactionRef.key, // Add transaction ID for reference
+      id: newTransactionRef.key,
+      tanggal: new Date().toISOString(),
+      nama: transactionDetails.customerName,
+      alamat: transactionDetails.address,
+      items: formattedItems,
       total: transactionDetails.total,
-      paymentMethod: transactionDetails.paymentMethod,
-      address: transactionDetails.address,
-      notes: transactionDetails.notes,
-      date: Date.now(),
-      status: "Pending",
-      products: transactionDetails.products,
-      paymentProof: transactionDetails.paymentProof || null, // Add payment proof if exists
+      status: "Pending", // Default status
+      metodePembayaran: transactionDetails.paymentMethod,
+      buktiPembayaran: transactionDetails.paymentProof,
+      notes: transactionDetails.notes || "",
+      createdAt: Date.now(), // Added timestamp for sorting
     };
 
     await set(newTransactionRef, transactionData);
 
-    // Step 2: Update stock for each product in the transaction
-    // const productsToUpdate = transactionDetails.products;
-    // for (let product of productsToUpdate) {
-    //   const result = await updateProductStock(product.id, product.quantity);
-    //   if (!result.success) {
-    //     console.error(`Failed to update stock for product ${product.id}`);
-    //     return { success: false, error: "Failed to update stock" };
-    //   }
-    // }
-
-    // Step 3: Clear the user's cart after successful transaction
+    // Clear user's cart
     const cartRef = ref(db, `users/${userId}/cart`);
-    await set(cartRef, {}); // Set cart to empty object
+    await set(cartRef, {});
 
     return {
       success: true,
       transactionId: newTransactionRef.key,
+      transactionData: transactionData,
     };
   } catch (error) {
     console.error("Error in transaction process:", error);
@@ -447,7 +421,6 @@ export const addTransactionHistory = async (userId, transactionDetails) => {
 
 // Firebase.js
 
-// Function to get transaction history for a user
 export const getTransactionHistory = async (userId) => {
   try {
     const transactionsRef = ref(db, `users/${userId}/transactions`);
@@ -467,5 +440,157 @@ export const getTransactionHistory = async (userId) => {
   } catch (error) {
     console.error("Error getting transaction history:", error);
     return { success: false, error: error.message };
+  }
+};
+
+// Ambil semua transaksi yang diurutkan berdasarkan tanggal
+export const getAllTransactionHistory = async () => {
+  try {
+    const transactionsRef = ref(db, "transactions");
+    const snapshot = await get(query(transactionsRef, orderByChild("tanggal")));
+
+    if (!snapshot.exists()) {
+      // Coba path alternatif jika data tidak ditemukan
+      const usersRef = ref(db, "users");
+      const usersSnapshot = await get(usersRef);
+
+      if (!usersSnapshot.exists()) {
+        return { success: false, error: "No transactions found" };
+      }
+
+      // Kumpulkan semua transaksi dari semua user
+      const allTransactions = [];
+      const users = usersSnapshot.val();
+
+      for (const userId in users) {
+        if (users[userId].transactions) {
+          const userTransactions = users[userId].transactions;
+          for (const transactionId in userTransactions) {
+            allTransactions.push({
+              id: transactionId,
+              userId: userId, // Tambahkan userId untuk referensi
+              ...userTransactions[transactionId],
+            });
+          }
+        }
+      }
+
+      // Urutkan berdasarkan tanggal (terbaru pertama)
+      const sortedTransactions = allTransactions.sort(
+        (a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime()
+      );
+
+      return {
+        success: true,
+        data: sortedTransactions,
+        message: `Found ${sortedTransactions.length} transactions from users data`,
+      };
+    }
+
+    // Jika data ditemukan di root /transactions
+    const transactions = snapshot.val();
+    const transactionsArray = Object.keys(transactions)
+      .map((key) => ({
+        id: key,
+        ...transactions[key],
+      }))
+      .reverse();
+
+    return { success: true, data: transactionsArray };
+  } catch (error) {
+    console.error("Error getting transaction history:", error);
+    return {
+      success: false,
+      error: error.message,
+      fullError: error, // Untuk debugging
+    };
+  }
+};
+
+// Mendapatkan referensi wishlist user
+const getUserWishlistRef = () => {
+  const userId = auth.currentUser?.uid;
+  if (!userId) throw new Error("User not authenticated");
+  return ref(db, `wishlists/${userId}`);
+};
+
+// Mendapatkan referensi item spesifik dalam wishlist
+const getWishlistItemRef = (itemId) => {
+  const userId = auth.currentUser?.uid;
+  if (!userId) throw new Error("User not authenticated");
+  return ref(db, `wishlists/${userId}/${itemId}`);
+};
+
+// Menambahkan item ke wishlist
+export const addToWishlist = async (product) => {
+  try {
+    const wishlistRef = getUserWishlistRef();
+    const newItemRef = push(wishlistRef);
+
+    const newItem = {
+      ...product,
+      id: newItemRef.key,
+      addedAt: Date.now(),
+    };
+
+    await set(newItemRef, newItem);
+    return newItem;
+  } catch (error) {
+    console.error("Error adding to wishlist:", error);
+    throw error;
+  }
+};
+
+// Mengupdate item di wishlist
+export const updateWishlistItem = async (itemId, updates) => {
+  try {
+    const itemRef = getWishlistItemRef(itemId);
+    await update(itemRef, updates);
+  } catch (error) {
+    console.error("Error updating wishlist item:", error);
+    throw error;
+  }
+};
+
+// Menghapus item dari wishlist
+export const removeFromWishlistFirebase = async (itemId) => {
+  try {
+    const itemRef = getWishlistItemRef(itemId);
+    await remove(itemRef);
+  } catch (error) {
+    console.error("Error removing from wishlist:", error);
+    throw error;
+  }
+};
+
+// Mendapatkan semua item wishlist user
+export const getUserWishlist = async () => {
+  try {
+    const wishlistRef = getUserWishlistRef();
+    const snapshot = await get(wishlistRef);
+
+    if (snapshot.exists()) {
+      const wishlistData = snapshot.val();
+      return Object.keys(wishlistData).map((key) => ({
+        ...wishlistData[key],
+        id: key,
+      }));
+    }
+
+    return [];
+  } catch (error) {
+    console.error("Error getting wishlist:", error);
+    throw error;
+  }
+};
+
+// Memeriksa apakah produk sudah ada di wishlist
+export const isProductInWishlist = async (productId) => {
+  try {
+    const wishlist = await getUserWishlist();
+    return wishlist.some((item) => item.productId === productId);
+  } catch (error) {
+    console.error("Error checking wishlist:", error);
+    throw error;
   }
 };

@@ -1,5 +1,4 @@
 export function formatPrice(price: any) {
-  console.log("Received price:", price); // Log nilai price
   const parsedPrice = parseFloat(price);
   if (isNaN(parsedPrice)) {
     return "Rp 0";

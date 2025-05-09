@@ -19,7 +19,9 @@ import {
 } from "../../../../firebase";
 
 const CheckoutScreen = ({ route, navigation }: any) => {
-  const { total } = route.params;
+  const { total, cartItems } = route.params;
+  console.log("🚀 ~ CheckoutScreen ~ total:", total);
+  console.log("🚀 ~ CheckoutScreen ~ cartItems:", cartItems);
   const [paymentMethod, setPaymentMethod] = useState("transfer");
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
@@ -107,42 +109,162 @@ const CheckoutScreen = ({ route, navigation }: any) => {
     }
   };
 
-  // const handleCheckout = () => {
-  //   if (paymentMethod === "transfer" && !paymentProof) {
-  //     Alert.alert(
-  //       "Bukti Transfer Diperlukan",
-  //       "Silakan upload bukti transfer terlebih dahulu",
-  //       [{ text: "OK" }]
-  //     );
+  // const handleConfirmOrder = async () => {
+  //   console.log("Klik konfirmasi pesanan");
+  //   if (!auth.currentUser) {
+  //     Alert.alert("Error", "Anda harus login terlebih dahulu.");
   //     return;
   //   }
 
-  //   navigation.navigate("OrderConfirmation", {
-  //     orderDetails: {
+  //   setUploading(true);
+
+  //   try {
+  //     for (let item of cartItems) {
+  //       const result = await updateProductStock(item.id, item.quantity);
+  //       if (!result.success) {
+  //         Alert.alert(
+  //           "Error",
+  //           "Gagal mengurangi stok untuk produk " + item.name
+  //         );
+  //         return;
+  //       }
+  //     }
+
+  //     const transactionDetails = {
   //       total,
-  //       paymentMethod:
-  //         paymentMethods.find((m) => m.id === paymentMethod)?.name || "Unknown",
+  //       paymentMethod,
   //       address,
   //       notes,
-  //       paymentProof: paymentMethod === "transfer" ? paymentProof : null,
-  //     },
-  //   });
+  //       products: cartItems.map((item: any) => ({
+  //         id: item.id,
+  //         name: item.name,
+  //         quantity: item.quantity,
+  //         price: item.price,
+  //       })),
+  //     };
+
+  //     const transactionResult = await addTransactionHistory(
+  //       auth.currentUser.uid,
+  //       transactionDetails
+  //     );
+  //     if (!transactionResult.success) {
+  //       Alert.alert("Error", "Gagal menambahkan riwayat transaksi");
+  //       return;
+  //     }
+
+  //     Alert.alert("Berhasil", "Items: " + transactionResult);
+  //   } catch (error) {
+  //     console.error("Error during checkout:", error);
+  //     Alert.alert("Error", "Terjadi kesalahan saat memproses pesanan");
+  //   } finally {
+  //     setUploading(false);
+  //   }
   // };
 
-  const cartItems = route.params.cartItems || [];
+  // const handleConfirmOrder = async () => {
+  //   console.log("Klik konfirmasi pesanan");
+  //   if (!auth.currentUser) {
+  //     Alert.alert("Error", "Anda harus login terlebih dahulu.");
+  //     return;
+  //   }
+
+  //   // Validasi form
+  //   if (!address) {
+  //     Alert.alert("Error", "Alamat pengiriman harus diisi");
+  //     return;
+  //   }
+
+  //   if (paymentMethod === "transfer" && !paymentProof) {
+  //     Alert.alert("Error", "Bukti transfer harus diupload");
+  //     return;
+  //   }
+
+  //   setUploading(true);
+
+  //   try {
+  //     // 1. Update stok produk
+  //     for (let item of cartItems) {
+  //       const result = await updateProductStock(item.id, item.quantity);
+  //       if (!result.success) {
+  //         Alert.alert(
+  //           "Error",
+  //           "Gagal mengurangi stok untuk produk " + item.name
+  //         );
+  //         return;
+  //       }
+  //     }
+
+  //     // 2. Format data transaksi sesuai struktur yang diinginkan
+  //     const transactionDetails = {
+  //       customerName: auth.currentUser.displayName || "Pelanggan", // Ambil nama dari auth jika ada
+  //       address: address,
+  //       paymentMethod:
+  //         paymentMethods.find((m) => m.id === paymentMethod)?.name ||
+  //         paymentMethod,
+  //       total: total,
+  //       notes: notes,
+  //       products: cartItems.map((item: any) => ({
+  //         id: item.id,
+  //         name: item.name,
+  //         price: item.price,
+  //         quantity: item.quantity,
+  //         image: item.image || item.imageUrl, // Sesuaikan dengan field yang ada
+  //       })),
+  //       paymentProof: paymentProof?.uri || null,
+  //     };
+
+  //     // 3. Tambahkan ke riwayat transaksi
+  //     const transactionResult = await addTransactionHistory(
+  //       auth.currentUser.uid,
+  //       transactionDetails
+  //     );
+
+  //     if (!transactionResult.success) {
+  //       Alert.alert("Error", "Gagal menambahkan riwayat transaksi");
+  //       return;
+  //     }
+
+  //     // 4. Tampilkan konfirmasi sukses
+  //     Alert.alert(
+  //       "Pesanan Berhasil",
+  //       `Pesanan Anda dengan ID ${transactionResult.transactionId} telah diterima`,
+  //       [
+  //         {
+  //           text: "OK",
+  //           onPress: () => navigation.goBack(), // Kembali ke halaman sebelumnya
+  //         },
+  //       ]
+  //     );
+  //   } catch (error) {
+  //     console.error("Error during checkout:", error);
+  //     Alert.alert("Error", "Terjadi kesalahan saat memproses pesanan");
+  //   } finally {
+  //     setUploading(false);
+  //   }
+  // };
 
   const handleConfirmOrder = async () => {
     console.log("Klik konfirmasi pesanan");
-    // Pastikan user sudah login
     if (!auth.currentUser) {
       Alert.alert("Error", "Anda harus login terlebih dahulu.");
+      return;
+    }
+
+    // Validasi form
+    if (!address) {
+      Alert.alert("Error", "Alamat pengiriman harus diisi");
+      return;
+    }
+
+    if (paymentMethod === "transfer" && !paymentProof) {
+      Alert.alert("Error", "Bukti transfer harus diupload");
       return;
     }
 
     setUploading(true);
 
     try {
-      // Mengurangi stok untuk setiap produk yang dibeli
+      // 1. Update stok produk
       for (let item of cartItems) {
         const result = await updateProductStock(item.id, item.quantity);
         if (!result.success) {
@@ -154,35 +276,66 @@ const CheckoutScreen = ({ route, navigation }: any) => {
         }
       }
 
-      // Menambahkan riwayat transaksi
+      // 2. Format data transaksi sesuai struktur dummy
       const transactionDetails = {
-        total,
-        paymentMethod,
-        address,
-        notes,
-        products: cartItems.map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-        })),
+        customerName: auth.currentUser.displayName || "Pelanggan",
+        address: address,
+        paymentMethod:
+          paymentMethods.find((m) => m.id === paymentMethod)?.name ||
+          paymentMethod,
+        total: total,
+        notes: notes,
+        products: cartItems,
+        paymentProof: paymentProof?.uri || null,
       };
 
+      // 3. Tambahkan ke riwayat transaksi
       const transactionResult = await addTransactionHistory(
         auth.currentUser.uid,
         transactionDetails
       );
+
       if (!transactionResult.success) {
         Alert.alert("Error", "Gagal menambahkan riwayat transaksi");
         return;
       }
 
-      // Berhasil, navigasi ke halaman konfirmasi
-      // navigation.navigate("OrderConfirmation", {
-      //   orderDetails: transactionDetails,
-      // });
-
-      Alert.alert("Berhasil", "Items: " + transactionResult);
+      // 4. Tampilkan konfirmasi sukses dengan detail transaksi
+      Alert.alert(
+        "Pesanan Berhasil",
+        `Pesanan Anda dengan ID ${transactionResult.transactionId} telah diterima\n\n` +
+          `Total: Rp ${total.toLocaleString("id-ID")}\n` +
+          `Metode Pembayaran: ${transactionDetails.paymentMethod}\n` +
+          `Status: Pending`,
+        [
+          {
+            text: "Lihat Detail",
+            onPress: () =>
+              navigation.reset({
+                index: 0, // Atur indeks ke 0 untuk memastikan hanya layar berikutnya yang tampil
+                routes: [
+                  {
+                    name: "ProfileStack", // Ganti dengan stack yang sesuai
+                    params: { screen: "Profile" },
+                  },
+                ],
+              }),
+          },
+          {
+            text: "Kembali ke Beranda",
+            onPress: () =>
+              navigation.reset({
+                index: 0,
+                routes: [
+                  {
+                    name: "HomeStack", // Ganti dengan stack yang sesuai
+                    params: { screen: "Home" },
+                  },
+                ],
+              }),
+          },
+        ]
+      );
     } catch (error) {
       console.error("Error during checkout:", error);
       Alert.alert("Error", "Terjadi kesalahan saat memproses pesanan");

@@ -16,7 +16,7 @@ import { ActivityIndicator } from "react-native-paper";
 
 export const AdminProductScreen = ({ navigation }: any) => {
   const [products, setProducts] = useState<any>();
-  console.log("🚀 ~ AdminProductScreen ~ products:", products);
+  // console.log("🚀 ~ AdminProductScreen ~ products:", products);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [sortBy, setSortBy] = useState<string>("name");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -100,8 +100,11 @@ export const AdminProductScreen = ({ navigation }: any) => {
     return (
       <View style={styles.productCard}>
         {/* Hanya tampilkan gambar jika displayUrl valid */}
-        {displayUrl ? (
-          <Image source={{ uri: displayUrl }} style={styles.productImage} />
+        {displayUrl || item.image ? (
+          <Image
+            source={{ uri: displayUrl || item?.image }}
+            style={styles.productImage}
+          />
         ) : (
           <Image
             source={require("./../../../../../assets/no_image.png")}

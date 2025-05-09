@@ -31,26 +31,35 @@ export const AdminProductDetailScreen = ({
     onSave(editedProduct);
   };
 
-  const imageUrl = editedProduct.image;
-
-  // Ekstrak ID file dari URL
-  const fileId = imageUrl.split("/file/d/")[1].split("/")[0];
-
-  // Format ulang URL
-  const displayUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1 }}
     >
       <ScrollView style={styles.container}>
-        {editedProduct.image && (
-          <Image
-            source={{ uri: displayUrl }}
-            style={styles.productImage}
-            resizeMode="contain"
-          />
-        )}
+        {editedProduct.image &&
+          (() => {
+            // Pastikan imageUrl ada sebelum memanggil split
+            const imageUrl = editedProduct?.image; // Ambil URL gambar dari produk yang diedit
+
+            // Periksa apakah imageUrl ada sebelum mencoba melakukan split
+            const fileId = imageUrl
+              ? imageUrl.split("/file/d/")[1]?.split("/")[0]
+              : null;
+
+            // Format ulang URL jika fileId ada
+            const displayUrl = fileId
+              ? `https://drive.google.com/uc?export=view&id=${fileId}`
+              : null;
+
+            return (
+              <Image
+                source={{ uri: displayUrl || editedProduct?.image }} // Gunakan displayUrl jika ada, atau fallback ke editedProduct.image
+                style={styles.productImage}
+                resizeMode="contain"
+              />
+            );
+          })()}
 
         <View style={styles.formGroup}>
           <Text style={styles.label}>Product Name</Text>

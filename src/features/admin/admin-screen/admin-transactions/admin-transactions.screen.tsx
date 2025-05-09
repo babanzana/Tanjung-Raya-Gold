@@ -36,16 +36,16 @@ export const AdminTransactionsScreen = () => {
   useEffect(() => {
     const fetchTransactions = async () => {
       setLoading(true);
-      console.log("Fetching transactions...");
+      // console.log("Fetching transactions...");
 
       const result = await getAllTransactionHistory();
-      console.log("Transaction result:", result); // Debug hasil query
+      // console.log("Transaction result:", result); // Debug hasil query
 
       if (result.success) {
         setTransactions(result.data || []);
       } else {
-        console.error("Error fetching transactions:", result.error);
-        console.error("Full error:", result.fullError); // Jika ada
+        // console.error("Error fetching transactions:", result.error);
+        // console.error("Full error:", result.fullError); // Jika ada
         Alert.alert("Error", result.error || "Failed to load transactions");
       }
 
@@ -228,25 +228,39 @@ export const AdminTransactionsScreen = () => {
 
                 <Text style={styles.sectionHeader}>Items:</Text>
 
-                {selectedTransaction.items.map((item: any) => (
-                  <View key={item.id} style={styles.itemCard}>
-                    <Image
-                      source={{ uri: item.image }}
-                      style={styles.itemImage}
-                    />
-                    <View style={styles.itemInfo}>
-                      <Text style={styles.itemName}>{item.nama}</Text>
-                      <View style={styles.itemPriceRow}>
-                        <Text style={styles.itemPrice}>
-                          {item.qty} × {formatCurrency(item.harga)}
-                        </Text>
-                        <Text style={styles.itemTotal}>
-                          {formatCurrency(item.totalHarga)}
-                        </Text>
+                {selectedTransaction.items.map((item: any) => {
+                  // Pastikan imageUrl ada sebelum memanggil split
+                  const imageUrl = item?.image; // Ambil URL gambar dari produk yang diedit
+
+                  // Periksa apakah imageUrl ada sebelum mencoba melakukan split
+                  const fileId = imageUrl
+                    ? imageUrl.split("/file/d/")[1]?.split("/")[0]
+                    : null;
+
+                  // Format ulang URL jika fileId ada
+                  const displayUrl = fileId
+                    ? `https://drive.google.com/uc?export=view&id=${fileId}`
+                    : null;
+                  return (
+                    <View key={item.id} style={styles.itemCard}>
+                      <Image
+                        source={{ uri: displayUrl || item?.image }}
+                        style={styles.itemImage}
+                      />
+                      <View style={styles.itemInfo}>
+                        <Text style={styles.itemName}>{item.nama}</Text>
+                        <View style={styles.itemPriceRow}>
+                          <Text style={styles.itemPrice}>
+                            {item.qty} × {formatCurrency(item.harga)}
+                          </Text>
+                          <Text style={styles.itemTotal}>
+                            {formatCurrency(item.totalHarga)}
+                          </Text>
+                        </View>
                       </View>
                     </View>
-                  </View>
-                ))}
+                  );
+                })}
               </Card.Content>
             </ScrollView>
             <Card.Actions style={styles.actionButtons}>

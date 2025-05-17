@@ -10,6 +10,8 @@ import {
   remove,
   query,
   orderByChild,
+  startAt,
+  endAt,
 } from "@firebase/database";
 import {
   getAuth,
@@ -592,5 +594,297 @@ export const isProductInWishlist = async (productId) => {
   } catch (error) {
     console.error("Error checking wishlist:", error);
     throw error;
+  }
+};
+
+// Updated Dashboard Data Function
+export const getDashboardData = async (startDate, endDate) => {
+  try {
+    // Convert dates to timestamps for comparison
+    const startTimestamp = new Date(startDate).getTime();
+    const endTimestamp = new Date(endDate).getTime();
+
+    // Get all transactions from all users (since transactions are stored per user)
+    const usersRef = ref(db, "users");
+    const usersSnapshot = await get(usersRef);
+
+    if (!usersSnapshot.exists()) {
+      return {
+        success: true,
+        data: [],
+        stats: getEmptyStats(),
+        message: "No user data found",
+      };
+    }
+
+    // Collect all transactions from all users
+    const allTransactions = [];
+    const users = usersSnapshot.val();
+
+    for (const userId in users) {
+      if (users[userId].transactions) {
+        const userTransactions = users[userId].transactions;
+        for (const transactionId in userTransactions) {
+          const transaction = userTransactions[transactionId];
+
+          // Only include transactions within date range
+          // Handle different date formats (ISO string or timestamp)
+          let transactionTimestamp;
+          if (transaction.createdAt) {
+            // If createdAt exists, use it directly (it's already a timestamp)
+            transactionTimestamp = transaction.createdAt;
+          } else {
+            // Otherwise use tanggal and convert if it's an ISO string
+            transactionTimestamp =
+              typeof transaction.tanggal === "string"
+                ? new Date(transaction.tanggal).getTime()
+                : transaction.tanggal;
+          }
+
+          if (
+            transactionTimestamp >= startTimestamp &&
+            transactionTimestamp <= endTimestamp
+          ) {
+            allTransactions.push({
+              id: transactionId,
+              userId: userId,
+              ...transaction,
+            });
+          }
+        }
+      }
+    }
+
+    // Sort transactions by date (newest first)
+    const sortedTransactions = allTransactions.sort((a, b) => {
+      const aTime = a.createdAt || new Date(a.tanggal).getTime();
+      const bTime = b.createdAt || new Date(b.tanggal).getTime();
+      return bTime - aTime;
+    });
+
+    return {
+      success: true,
+      data: sortedTransactions,
+      stats: calculateDashboardStats(sortedTransactions),
+      count: sortedTransactions.length,
+      dateRange: {
+        start: new Date(startDate).toISOString(),
+        end: new Date(endDate).toISOString(),
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching dashboard data:", error);
+    return {
+      success: false,
+      error: error.message || "Terjadi kesalahan saat mengambil data",
+      data: [],
+      stats: getEmptyStats(),
+    };
+  }
+};
+
+// Enhanced calculateDashboardStats function for better insights
+const calculateDashboardStats = (transactions) => {
+  // Total sales
+  const totalSales = transactions.reduce(
+    (sum, transaction) => sum + (transaction.total || 0),
+    0
+  );
+
+  // Total transactions
+  const totalTransactions = transactions.length;
+
+  // Payment method statistics - handle both metodePembayaran and paymentMethod
+  const paymentMethodStats = {
+    "Transfer Bank": 0,
+    "Kartu Kredit": 0,
+    Tunai: 0,
+    "Kartu Debit": 0,
+    Other: 0, // Catch-all for unrecognized methods
+  };
+
+  transactions.forEach((transaction) => {
+    // Handle different property names
+    const method =
+      transaction.metodePembayaran || transaction.paymentMethod || "Other";
+
+    if (paymentMethodStats.hasOwnProperty(method)) {
+      paymentMethodStats[method] += transaction.total || 0;
+    } else {
+      paymentMethodStats["Other"] += transaction.total || 0;
+    }
+  });
+
+  // Calculate average transaction value
+  const averageTransactionValue =
+    totalTransactions > 0 ? totalSales / totalTransactions : 0;
+
+  // Transactions by date - improved to handle various date formats
+  const transactionsByDate = {};
+  transactions.forEach((transaction) => {
+    // Try to extract date from different fields
+    let dateStr;
+    if (transaction.tanggal) {
+      dateStr = new Date(transaction.tanggal).toISOString().split("T")[0];
+    } else if (transaction.createdAt) {
+      dateStr = new Date(transaction.createdAt).toISOString().split("T")[0];
+    } else {
+      // Use current date as fallback for data integrity
+      dateStr = new Date().toISOString().split("T")[0];
+    }
+
+    if (!transactionsByDate[dateStr]) {
+      transactionsByDate[dateStr] = {
+        count: 0,
+        total: 0,
+      };
+    }
+    transactionsByDate[dateStr].count += 1;
+    transactionsByDate[dateStr].total += transaction.total || 0;
+  });
+
+  // Calculate product categories distribution
+  const categoryStats = {};
+  transactions.forEach((transaction) => {
+    const items = transaction.items || transaction.products || [];
+    if (Array.isArray(items)) {
+      items.forEach((item) => {
+        const category = item.category || "Uncategorized";
+        if (!categoryStats[category]) {
+          categoryStats[category] = {
+            totalSold: 0,
+            totalRevenue: 0,
+          };
+        }
+        categoryStats[category].totalSold += item.qty || item.quantity || 1;
+        categoryStats[category].totalRevenue +=
+          item.totalHarga || item.price * (item.qty || item.quantity || 1) || 0;
+      });
+    }
+  });
+
+  // Convert dates object to array for easier charting
+  const salesByDateArray = Object.keys(transactionsByDate)
+    .map((date) => ({
+      date,
+      count: transactionsByDate[date].count,
+      total: transactionsByDate[date].total,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  return {
+    totalSales,
+    totalTransactions,
+    averageTransactionValue,
+    paymentMethodStats,
+    transactionsByDate,
+    salesByDateArray,
+    categoryStats,
+  };
+};
+
+// Improved Top Products function with sales data from transactions
+export const getTopProducts = async (limit = 5) => {
+  try {
+    // First get all transactions to calculate product sales
+    const transactionsResult = await getAllTransactionHistory();
+
+    if (!transactionsResult.success) {
+      throw new Error(transactionsResult.error);
+    }
+
+    // Calculate product sales from transactions
+    const productSales = {};
+    transactionsResult.data.forEach((transaction) => {
+      // Handle both "items" and "products" keys since your code has both
+      const items = transaction.items || transaction.products || [];
+
+      if (Array.isArray(items)) {
+        items.forEach((item) => {
+          // Handle different property names in items
+          const productId = item.id || item.productId;
+          const productName = item.nama || item.name;
+          const quantity = item.qty || item.quantity || 1;
+          const price = item.harga || item.price || 0;
+          const totalPrice = item.totalHarga || price * quantity;
+
+          if (!productId) return; // Skip items without ID
+
+          if (!productSales[productId]) {
+            productSales[productId] = {
+              id: productId,
+              name: productName,
+              totalSold: 0,
+              totalRevenue: 0,
+              transactions: 0,
+            };
+          }
+
+          productSales[productId].totalSold += quantity;
+          productSales[productId].totalRevenue += totalPrice;
+          productSales[productId].transactions += 1;
+        });
+      }
+    });
+
+    // Convert to array and sort by quantity sold
+    const sortedProducts = Object.values(productSales).sort(
+      (a, b) => b.totalSold - a.totalSold
+    );
+
+    // Get additional product details if needed
+    const productsRef = ref(db, "products");
+    const productsSnapshot = await get(productsRef);
+
+    if (productsSnapshot.exists()) {
+      const productsData = productsSnapshot.val();
+
+      // Enhance product sales data with additional product details
+      sortedProducts.forEach((product) => {
+        if (productsData[product.id]) {
+          product.image = productsData[product.id].image;
+          product.price = productsData[product.id].price;
+          product.category = productsData[product.id].category;
+          product.stock = productsData[product.id].stock;
+          product.avgPricePerItem = product.totalRevenue / product.totalSold;
+        }
+      });
+    }
+
+    // Include current product data for those without sales
+    if (productsSnapshot.exists() && sortedProducts.length < limit) {
+      const productsData = productsSnapshot.val();
+      const productIds = sortedProducts.map((p) => p.id);
+
+      // Add products without sales
+      Object.keys(productsData).forEach((productId) => {
+        if (!productIds.includes(productId)) {
+          sortedProducts.push({
+            id: productId,
+            name: productsData[productId].name,
+            totalSold: 0,
+            totalRevenue: 0,
+            transactions: 0,
+            image: productsData[productId].image,
+            price: productsData[productId].price,
+            category: productsData[productId].category,
+            stock: productsData[productId].stock,
+          });
+        }
+      });
+    }
+
+    return {
+      success: true,
+      data: sortedProducts.slice(0, limit),
+      totalProducts: sortedProducts.length,
+    };
+  } catch (error) {
+    console.error("Error fetching top products:", error);
+    return {
+      success: false,
+      error: error.message || "Error fetching top products",
+      data: [],
+    };
   }
 };

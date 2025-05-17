@@ -158,7 +158,7 @@ export const WishlistScreen = ({ route, navigation }: any) => {
             style={styles.shopButton}
             onPress={() => navigation.navigate("HomeStack", { screen: "Home" })}
           >
-            <Text style={styles.shopButtonText}>Belanja Sekarang</Text>
+            <Text style={styles.shopButtonText}>Pilih Sekarang</Text>
           </TouchableOpacity>
         </View>
       ) : (

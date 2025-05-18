@@ -1,5 +1,4 @@
-// edit-product.screen.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,19 +7,41 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 
 export const AdminProductDetailScreen = ({
   product,
   onSave,
   onCancel,
+  isLoading,
+  isNewProduct,
 }: any) => {
-  const [editedProduct, setEditedProduct] = useState<any>({ ...product });
+  // Default values untuk product baru
+  const defaultProduct = {
+    name: "",
+    category: "",
+    price: "",
+    stock: "",
+    image: "",
+    description: "",
+  };
 
-  const handleChange = (field: keyof any, value: string | number) => {
+  // Inisialisasi state dengan nilai default jika product baru, atau nilai produk yang ada jika edit
+  const [editedProduct, setEditedProduct] = useState<any>(
+    isNewProduct
+      ? defaultProduct
+      : {
+          ...product,
+          // Konversi nilai numerik ke string untuk TextInput
+          price: product.price?.toString() || "",
+          stock: product.stock?.toString() || "",
+        }
+  );
+
+  const handleChange = (field: string, value: string | number) => {
     setEditedProduct((prev: any) => ({
       ...prev,
       [field]: value,
@@ -31,38 +52,41 @@ export const AdminProductDetailScreen = ({
     onSave(editedProduct);
   };
 
+  // Render image jika ada
+  const renderImage = () => {
+    if (!editedProduct.image) return null;
+
+    const imageUrl = editedProduct.image;
+    const fileId = imageUrl
+      ? imageUrl.split("/file/d/")[1]?.split("/")[0]
+      : null;
+
+    const displayUrl = fileId
+      ? `https://drive.google.com/uc?export=view&id=${fileId}`
+      : null;
+
+    return (
+      <Image
+        source={{ uri: displayUrl || editedProduct.image }}
+        style={styles.productImage}
+        resizeMode="contain"
+      />
+    );
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1 }}
     >
       <ScrollView style={styles.container}>
-        {editedProduct.image &&
-          (() => {
-            // Pastikan imageUrl ada sebelum memanggil split
-            const imageUrl = editedProduct?.image; // Ambil URL gambar dari produk yang diedit
 
-            // Periksa apakah imageUrl ada sebelum mencoba melakukan split
-            const fileId = imageUrl
-              ? imageUrl.split("/file/d/")[1]?.split("/")[0]
-              : null;
-
-            // Format ulang URL jika fileId ada
-            const displayUrl = fileId
-              ? `https://drive.google.com/uc?export=view&id=${fileId}`
-              : null;
-
-            return (
-              <Image
-                source={{ uri: displayUrl || editedProduct?.image }} // Gunakan displayUrl jika ada, atau fallback ke editedProduct.image
-                style={styles.productImage}
-                resizeMode="contain"
-              />
-            );
-          })()}
+        {renderImage()}
 
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Product Name</Text>
+          <Text style={styles.label}>
+            Product Name<Text style={styles.required}>*</Text>
+          </Text>
           <TextInput
             style={styles.input}
             value={editedProduct.name}
@@ -72,7 +96,9 @@ export const AdminProductDetailScreen = ({
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Category</Text>
+          <Text style={styles.label}>
+            Category<Text style={styles.required}>*</Text>
+          </Text>
           <TextInput
             style={styles.input}
             value={editedProduct.category}
@@ -82,22 +108,26 @@ export const AdminProductDetailScreen = ({
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Price (IDR)</Text>
+          <Text style={styles.label}>
+            Price (IDR)<Text style={styles.required}>*</Text>
+          </Text>
           <TextInput
             style={styles.input}
-            value={editedProduct.price.toString()}
-            onChangeText={(text) => handleChange("price", Number(text) || 0)}
+            value={editedProduct.price}
+            onChangeText={(text) => handleChange("price", text)}
             placeholder="Enter price"
             keyboardType="numeric"
           />
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Stock</Text>
+          <Text style={styles.label}>
+            Stock<Text style={styles.required}>*</Text>
+          </Text>
           <TextInput
             style={styles.input}
-            value={editedProduct.stock.toString()}
-            onChangeText={(text) => handleChange("stock", Number(text) || 0)}
+            value={editedProduct.stock}
+            onChangeText={(text) => handleChange("stock", text)}
             placeholder="Enter stock quantity"
             keyboardType="numeric"
           />
@@ -129,8 +159,18 @@ export const AdminProductDetailScreen = ({
           <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
             <Text style={styles.buttonText}>Cancel</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.buttonText}>Save Changes</Text>
+          <TouchableOpacity
+            style={[styles.saveButton, isLoading && styles.disabledButton]}
+            onPress={handleSave}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#ffffff" size="small" />
+            ) : (
+              <Text style={styles.buttonText}>
+                {isNewProduct ? "Add Product" : "Save Changes"}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -145,7 +185,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f5f5",
   },
   header: {
-    marginBottom: 20,
+    marginVertical: 20,
   },
   title: {
     fontSize: 24,
@@ -156,9 +196,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 200,
     borderRadius: 8,
-    marginTop: 15,
     marginBottom: 20,
-    resizeMode: "contain",
     backgroundColor: "#eee",
   },
   formGroup: {
@@ -168,6 +206,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 8,
     color: "#555",
+  },
+  required: {
+    color: "red",
+    fontSize: 16,
   },
   input: {
     backgroundColor: "white",
@@ -185,6 +227,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 20,
+    marginBottom: 30,
   },
   saveButton: {
     backgroundColor: "#007bff",
@@ -193,6 +236,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 10,
     alignItems: "center",
+    justifyContent: "center",
   },
   cancelButton: {
     backgroundColor: "#dc3545",
@@ -201,6 +245,9 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 10,
     alignItems: "center",
+  },
+  disabledButton: {
+    backgroundColor: "#7cadf2",
   },
   buttonText: {
     color: "white",

@@ -8,9 +8,10 @@ import {
   TextInput,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { Text, Chip, Button } from "react-native-paper";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { formatPrice } from "../../utils";
 import { getAllProducts } from "../../../firebase";
 
@@ -20,54 +21,86 @@ export const HomeScreen = ({ navigation }: any) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Semua");
   const [priceRange, setPriceRange] = useState([0, 10000000]);
-  const [products, setProducts] = useState<any[]>([]); // Menyimpan produk
-  const [loading, setLoading] = useState(true); // Menyimpan status loading
-  const [refreshing, setRefreshing] = useState(false); // Menyimpan status refresh
+  const [products, setProducts] = useState<any[]>([]); // Initialize with empty array
+  const [loading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Ambil data produk dari Firebase
-  const fetchProducts = async () => {
-    setLoading(true);
-    const allProducts = await getAllProducts(); // Mengambil produk dari Firebase
-    setProducts(allProducts); // Set data produk ke state
-    setLoading(false);
-  };
+  // Fetch products from Firebase
+  const fetchProducts = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const productsData = await getAllProducts();
 
-  useEffect(() => {
-    fetchProducts(); // Ambil data produk ketika komponen pertama kali dimuat
+      if (productsData) {
+        // Handle Firebase object format (convert object to array)
+        if (typeof productsData === "object" && !Array.isArray(productsData)) {
+          const productsArray = Object.entries(productsData).map(
+            ([key, value]) => {
+              // If the key is already stored in the object as id, use that
+              // Otherwise, use the Firebase key as id
+              const v = value as any;
+              return {
+                id: v && typeof v === "object" && v.id ? v.id : key,
+                ...(v && typeof v === "object" ? v : {}),
+              };
+            }
+          );
+          setProducts(productsArray);
+        } else {
+          // If already an array, use as is
+          setProducts(Array.isArray(productsData) ? productsData : []);
+        }
+      } else {
+        console.error("Failed to fetch products: Invalid data format");
+        setProducts([]); // Set empty array as fallback
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      Alert.alert("Error", "Failed to load products. Please try again.");
+      setProducts([]); // Set empty array on error
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
+  useEffect(() => {
+    fetchProducts(); // Fetch products when component first loads
+  }, [fetchProducts]);
+
+  // Make sure products exists before filtering
   const filteredProducts = products.filter((product) => {
-    // Filter berdasarkan pencarian
-    const matchesSearch = product.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
+    // Filter based on search
+    const matchesSearch = product?.name
+      ?.toLowerCase()
+      ?.includes(searchQuery.toLowerCase()) || false;
 
-    // Filter berdasarkan kategori
+    // Filter based on category
     const matchesCategory =
-      selectedCategory === "Semua" || product.category === selectedCategory;
+      selectedCategory === "Semua" || product?.category === selectedCategory;
 
-    // Filter berdasarkan harga
+    // Filter based on price
     const matchesPrice =
-      product.price >= priceRange[0] && product.price <= priceRange[1];
+      product?.price >= priceRange[0] && product?.price <= priceRange[1];
 
     return matchesSearch && matchesCategory && matchesPrice;
   });
 
   const handleProductPress = (product: any) => {
-    // Navigasi ke halaman detail produk
+    // Navigate to product detail page
     navigation.navigate("ProductDetail", { product });
   };
 
   const renderProductItem = ({ item }: { item: any }) => {
-    // Pastikan imageUrl ada sebelum memanggil split
-    const imageUrl = item?.image; // Ambil URL gambar dari produk
+    // Make sure imageUrl exists before calling split
+    const imageUrl = item?.image;
 
-    // Periksa apakah imageUrl ada sebelum mencoba melakukan split
+    // Check if imageUrl exists before trying to split
     const fileId = imageUrl
       ? imageUrl.split("/file/d/")[1]?.split("/")[0]
       : null;
 
-    // Format ulang URL jika fileId ada
+    // Reformat URL if fileId exists
     const displayUrl = fileId
       ? `https://drive.google.com/uc?export=view&id=${fileId}`
       : null;
@@ -75,10 +108,10 @@ export const HomeScreen = ({ navigation }: any) => {
       <TouchableOpacity
         style={[
           styles.productCard,
-          item.stock === 0 && styles.outOfStock, // Ubah tampilan jika stok 0
+          item.stock === 0 && styles.outOfStock, // Change appearance if stock is 0
         ]}
         onPress={() => handleProductPress(item)}
-        disabled={item.stock === 0} // Nonaktifkan klik jika stok 0
+        disabled={item.stock === 0} // Disable click if stock is 0
       >
         <Image
           source={
@@ -103,9 +136,8 @@ export const HomeScreen = ({ navigation }: any) => {
   };
 
   const onRefresh = async () => {
-    setRefreshing(true); // Menandakan bahwa refresh sedang berjalan
-    await fetchProducts(); // Ambil produk lagi dari Firebase
-    setRefreshing(false); // Menandakan bahwa refresh selesai
+    setRefreshing(true);
+    await fetchProducts();
   };
 
   return (
@@ -120,7 +152,7 @@ export const HomeScreen = ({ navigation }: any) => {
         />
       </View>
 
-      {/* Filter Kategori */}
+      {/* Category Filter */}
       <View style={styles.filterContainer}>
         {categories.map((category) => (
           <Chip
@@ -135,9 +167,11 @@ export const HomeScreen = ({ navigation }: any) => {
         ))}
       </View>
 
-      {/* Daftar Produk */}
+      {/* Product List */}
       {loading ? (
-        <ActivityIndicator size="large" color="#FFD700" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FFD700" />
+        </View>
       ) : (
         <FlatList
           data={filteredProducts}
@@ -159,6 +193,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
     padding: 10,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   searchContainer: {
     padding: 10,
@@ -225,7 +264,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#666",
   },
-  // Gaya untuk produk yang stoknya habis (abu-abu)
+  // Style for out-of-stock products (gray)
   outOfStock: {
     backgroundColor: "#e0e0e0",
   },

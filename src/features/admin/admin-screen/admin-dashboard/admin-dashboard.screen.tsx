@@ -141,6 +141,60 @@ const calculateDashboardStats = (transactions: any) => {
   };
 };
 
+// Fungsi untuk mendapatkan transaksi offline
+const getOfflineTransactions = async (startDate: any, endDate: any) => {
+  try {
+    // Konversi tanggal ke timestamp untuk perbandingan
+    const startTimestamp = new Date(startDate).setHours(0, 0, 0, 0);
+    const endTimestamp = new Date(endDate).setHours(23, 59, 59, 999);
+
+    // Dapatkan semua transaksi offline
+    const offlineTransactionsRef = ref(db, "offlinetransactions");
+    const offlineSnapshot = await get(offlineTransactionsRef);
+
+    const offlineTransactions: any[] = [];
+
+    if (offlineSnapshot.exists()) {
+      offlineSnapshot.forEach((childSnapshot) => {
+        const transaction = childSnapshot.val();
+
+        // Cek tanggal transaksi
+        let transactionTimestamp;
+        if (transaction.createdAt) {
+          transactionTimestamp = transaction.createdAt;
+        } else if (transaction.tanggal) {
+          transactionTimestamp =
+            typeof transaction.tanggal === "string"
+              ? new Date(transaction.tanggal).getTime()
+              : transaction.tanggal;
+        } else {
+          // Jika tidak ada informasi tanggal, gunakan fallback
+          console.warn("Transaction without date found:", childSnapshot.key);
+          return; // skip transaksi tanpa tanggal
+        }
+
+        // Hanya tambahkan transaksi dalam rentang tanggal
+        if (
+          transactionTimestamp >= startTimestamp &&
+          transactionTimestamp <= endTimestamp
+        ) {
+          offlineTransactions.push({
+            id: childSnapshot.key,
+            ...transaction,
+            // Flag untuk menandai transaksi offline
+            isOffline: true,
+          });
+        }
+      });
+    }
+
+    return offlineTransactions;
+  } catch (error) {
+    console.error("Error fetching offline transactions:", error);
+    return [];
+  }
+};
+
 // Fungsi untuk mendapatkan data dashboard
 const getDashboardData = async (startDate: any, endDate: any) => {
   try {
@@ -190,6 +244,7 @@ const getDashboardData = async (startDate: any, endDate: any) => {
                 id: transactionId,
                 userId: userId,
                 ...transaction,
+                isOffline: false,
               });
             }
           }
@@ -222,13 +277,23 @@ const getDashboardData = async (startDate: any, endDate: any) => {
           allTransactions.push({
             id: transactionId,
             ...transaction,
+            isOffline: false,
           });
         }
       }
     }
 
+    // Dapatkan transaksi offline
+    const offlineTransactions = await getOfflineTransactions(
+      startDate,
+      endDate
+    );
+
+    // Gabungkan semua transaksi
+    const combinedTransactions = [...allTransactions, ...offlineTransactions];
+
     // Urutkan transaksi berdasarkan tanggal (terbaru lebih dulu)
-    const sortedTransactions = allTransactions.sort((a, b) => {
+    const sortedTransactions = combinedTransactions.sort((a, b) => {
       const aTime =
         a.createdAt ||
         (typeof a.tanggal === "string"
@@ -250,6 +315,11 @@ const getDashboardData = async (startDate: any, endDate: any) => {
       dateRange: {
         start: new Date(startDate).toISOString(),
         end: new Date(endDate).toISOString(),
+      },
+      // Tambahkan statistik tambahan tentang transaksi offline
+      offlineStats: {
+        count: offlineTransactions.length,
+        total: offlineTransactions.reduce((sum, t) => sum + (t.total || 0), 0),
       },
     };
   } catch (error) {
@@ -275,6 +345,10 @@ const getDashboardData = async (startDate: any, endDate: any) => {
         transactionsByDate: {},
         salesByDateArray: [],
         categoryStats: {},
+      },
+      offlineStats: {
+        count: 0,
+        total: 0,
       },
     };
   }
@@ -310,6 +384,11 @@ type DashboardStats = {
   categoryStats: CategoryStats;
 };
 
+type OfflineStats = {
+  count: number;
+  total: number;
+};
+
 export const AdminDashboardScreen = () => {
   const theme = useTheme();
 
@@ -343,6 +422,10 @@ export const AdminDashboardScreen = () => {
     salesByDateArray: [],
     categoryStats: {},
   });
+  const [offlineStats, setOfflineStats] = useState<OfflineStats>({
+    count: 0,
+    total: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -363,6 +446,7 @@ export const AdminDashboardScreen = () => {
       if (result.success) {
         setTransactions(result.data);
         setDashboardStats(result.stats);
+        setOfflineStats(result.offlineStats);
       } else {
         setError(result.error || "Gagal mengambil data");
         setTransactions([]);
@@ -476,10 +560,26 @@ export const AdminDashboardScreen = () => {
   // Menyiapkan data untuk grafik batang
   const barChartData = () => {
     return {
-      labels: ["Total Penjualan"],
+      labels: ["Total"],
       datasets: [
         {
           data: [dashboardStats.totalSales > 0 ? dashboardStats.totalSales : 0],
+        },
+      ],
+    };
+  };
+
+  // Menyiapkan data untuk grafik batang perbandingan penjualan online dan offline
+  const onlineOfflineChartData = () => {
+    const onlineTotal = dashboardStats.totalSales - offlineStats.total;
+    return {
+      labels: ["Online", "Offline"],
+      datasets: [
+        {
+          data: [
+            onlineTotal > 0 ? onlineTotal : 0,
+            offlineStats.total > 0 ? offlineStats.total : 0,
+          ],
         },
       ],
     };
@@ -511,6 +611,18 @@ export const AdminDashboardScreen = () => {
   const formatDateDisplay = (date: any) => {
     return format(date, "dd MMMM yyyy", { locale: id });
   };
+
+  // Menghitung persentase transaksi online dan offline
+  const calculatePercentage = (value: number, total: number) => {
+    if (total === 0) return 0;
+    return Math.round((value / total) * 100);
+  };
+
+  // Hitung nilai online
+  const onlineTransactionsTotal =
+    dashboardStats.totalSales - offlineStats.total;
+  const onlineTransactionsCount =
+    dashboardStats.totalTransactions - offlineStats.count;
 
   return (
     <View style={styles.container}>
@@ -599,6 +711,72 @@ export const AdminDashboardScreen = () => {
                       {formatCurrency(dashboardStats.averageTransactionValue)}
                     </Text>
                   </View>
+                </View>
+              </Card.Content>
+            </Card>
+
+            {/* Card untuk menampilkan transaksi Online dan Offline */}
+            <Card style={styles.card}>
+              <Card.Title title="Transaksi Online vs Offline" />
+              <Card.Content>
+                <View style={styles.summaryContainer}>
+                  <View
+                    style={[styles.summaryItem, { backgroundColor: "#E3F2FD" }]}
+                  >
+                    <Text style={styles.summaryLabel}>Online</Text>
+                    <Text style={styles.summaryValue}>
+                      {formatCurrency(onlineTransactionsTotal)}
+                    </Text>
+                    <Text style={styles.summarySubtext}>
+                      {onlineTransactionsCount} transaksi (
+                      {calculatePercentage(
+                        onlineTransactionsCount,
+                        dashboardStats.totalTransactions
+                      )}
+                      %)
+                    </Text>
+                  </View>
+                  <View
+                    style={[styles.summaryItem, { backgroundColor: "#FFF3E0" }]}
+                  >
+                    <Text style={styles.summaryLabel}>Offline</Text>
+                    <Text style={styles.summaryValue}>
+                      {formatCurrency(offlineStats.total)}
+                    </Text>
+                    <Text style={styles.summarySubtext}>
+                      {offlineStats.count} transaksi (
+                      {calculatePercentage(
+                        offlineStats.count,
+                        dashboardStats.totalTransactions
+                      )}
+                      %)
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Grafik batang untuk perbandingan online vs offline */}
+                <View style={styles.chartContainer}>
+                  <BarChart
+                    data={onlineOfflineChartData()}
+                    width={Dimensions.get("window").width - 60}
+                    height={220}
+                    chartConfig={{
+                      backgroundColor: theme.colors.primary,
+                      backgroundGradientFrom: "#4CAF50",
+                      backgroundGradientTo: "#2196F3",
+                      decimalPlaces: 0,
+                      color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                      labelColor: (opacity = 1) =>
+                        `rgba(255, 255, 255, ${opacity})`,
+                      style: {
+                        borderRadius: 16,
+                      },
+                    }}
+                    fromZero
+                    yAxisLabel="Rp"
+                    yAxisSuffix=""
+                    verticalLabelRotation={0}
+                  />
                 </View>
               </Card.Content>
             </Card>
@@ -707,7 +885,7 @@ export const AdminDashboardScreen = () => {
                   {Object.entries(dashboardStats.categoryStats).map(
                     ([category, stats]) => (
                       <View key={category} style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>{category}</Text>
+                        <Text style={styles.detailLabel}>{category} </Text>
                         <View style={styles.categoryDetails}>
                           <Text style={styles.categoryText}>
                             {stats.totalSold} unit
@@ -1235,5 +1413,11 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     marginLeft: 8,
+  },
+  summarySubtext: {
+    fontSize: 12,
+    color: "#888",
+    marginTop: 4,
+    textAlign: "center",
   },
 });

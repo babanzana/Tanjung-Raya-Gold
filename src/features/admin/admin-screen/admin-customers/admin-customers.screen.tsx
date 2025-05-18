@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   FlatList,
@@ -8,70 +8,153 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  Alert,
+  RefreshControl,
 } from "react-native";
-import { DUMMY_USERS } from "../../../../dummy";
+import {
+  deleteCustomer,
+  getAllCustomers,
+  searchCustomers,
+} from "../../../../../firebase";
 
 interface Customer {
   id: number;
   nama: string;
   username: string;
   email: string;
-  nohp: string; // Changed from roles to noHp
+  nohp: string;
   alamat: string;
   imageUrl: string;
 }
 
 export const AdminCustomersScreen = ({ navigation }: any) => {
-  const [customers, setCustomers] = useState<Customer[]>(
-    DUMMY_USERS[0].users.map((user) => ({
-      ...user,
-      noHp: user.roles, // Temporarily using roles as phone number for dummy data
-    }))
-  );
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   const filteredCustomers = customers.filter((customer) => {
     return (
-      customer.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.nohp.toLowerCase().includes(searchQuery.toLowerCase()) // Search by phone number
+      customer.nama?.toLowerCase().includes(searchQuery.toLowerCase() || "") ||
+      customer.email?.toLowerCase().includes(searchQuery.toLowerCase() || "") ||
+      customer.nohp?.toLowerCase().includes(searchQuery.toLowerCase() || "") // Search by phone number
     );
   });
 
-  const handleDelete = (id: number) => {
-    setCustomers(customers.filter((customer) => customer.id !== id));
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  // Function to fetch customers
+  const fetchCustomers = async () => {
+    try {
+      setIsLoading(true);
+      const data = await getAllCustomers();
+      setCustomers(data);
+    } catch (error) {
+      console.error("Failed to fetch customers:", error);
+      Alert.alert("Error", "Failed to load customers. Please try again.");
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
   };
 
-  const renderCustomerItem = ({ item }: { item: Customer }) => (
-    <View style={styles.customerCard}>
-      <Image source={{ uri: item.imageUrl }} style={styles.customerImage} />
-      <View style={styles.customerInfo}>
-        <Text style={styles.customerName}>{item.nama}</Text>
-        <Text style={styles.customerEmail}>{item.email}</Text>
-        <Text style={styles.customerPhone}>No. HP: {item.nohp}</Text>{" "}
-        {/* Changed from roles to phone */}
-        <Text style={styles.customerAddress} numberOfLines={1}>
-          {item.alamat}
-        </Text>
+  // Function to handle search
+  const handleSearch = async () => {
+    try {
+      setIsLoading(true);
+      const results = await searchCustomers(searchQuery);
+      setCustomers(results);
+    } catch (error) {
+      console.error("Search failed:", error);
+      Alert.alert("Error", "Search failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Search on text change
+  useEffect(() => {
+    // Debounce search to avoid too many requests
+    const debounceTimeout = setTimeout(() => {
+      handleSearch();
+    }, 500);
+
+    return () => clearTimeout(debounceTimeout);
+  }, [searchQuery]);
+
+  // Function to handle delete
+  const handleDelete = (customer: Customer) => {
+    Alert.alert(
+      "Delete Customer",
+      `Are you sure you want to delete ${customer.nama}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteCustomer(customer.id);
+              // Remove from local state
+              setCustomers((prevCustomers) =>
+                prevCustomers.filter((c) => c.id !== customer.id)
+              );
+              Alert.alert("Success", "Customer deleted successfully");
+            } catch (error) {
+              console.error("Delete failed:", error);
+              Alert.alert(
+                "Error",
+                "Failed to delete customer. Please try again."
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Handle refresh
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    fetchCustomers();
+  };
+
+  const renderCustomerItem = ({ item }: { item: any }) => {
+    return (
+      <View style={styles.customerCard}>
+        {/* <Image
+        source={{ uri: item.imageUrl || "https://placekitten.com/200/200" }}
+        style={styles.customerImage}
+      /> */}
+        <View style={styles.customerInfo}>
+          <Text style={styles.customerName}>{item.fullName || "No Name"}</Text>
+          <Text style={styles.customerEmail}>{item.email || "No Email"}</Text>
+          <Text style={styles.customerPhone}>No. HP: {item.nohp || "-"}</Text>
+          <Text style={styles.customerAddress} numberOfLines={1}>
+            {item.alamat || "No Address"}
+          </Text>
+        </View>
+        <View style={styles.customerActions}>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() =>
+              navigation.navigate("EditCustomer", { customer: item })
+            }
+          >
+            <Text style={styles.buttonText}>Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => handleDelete(item)}
+          >
+            <Text style={styles.buttonText}>Delete</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-      <View style={styles.customerActions}>
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={() =>
-            navigation.navigate("EditCustomer", { customer: item })
-          }
-        >
-          <Text style={styles.buttonText}>Edit</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => handleDelete(item.id)}
-        >
-          <Text style={styles.buttonText}>Delete</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -95,12 +178,15 @@ export const AdminCustomersScreen = ({ navigation }: any) => {
         ListEmptyComponent={
           <Text style={styles.emptyText}>No customers found</Text>
         }
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+        }
       />
 
       {/* Add Customer Button */}
       <TouchableOpacity
         style={styles.addButton}
-        onPress={() => navigation.navigate("AddCustomer")}
+        onPress={() => navigation.navigate("EditCustomer")}
       >
         <Text style={styles.addButtonText}>+ Add New Customer</Text>
       </TouchableOpacity>

@@ -156,17 +156,17 @@ export const resetPassword = async (email) => {
   }
 };
 
-// Function to save product data
-export const saveProduct = async (product) => {
-  try {
-    const productRef = ref(db, `products/${product.id}`);
-    await set(productRef, product);
-    return { success: true };
-  } catch (error) {
-    console.error("Firebase save error:", error);
-    return { success: false, error };
-  }
-};
+// // Function to save product data
+// export const saveProduct = async (product) => {
+//   try {
+//     const productRef = ref(db, `products/${product.id}`);
+//     await set(productRef, product);
+//     return { success: true };
+//   } catch (error) {
+//     console.error("Firebase save error:", error);
+//     return { success: false, error };
+//   }
+// };
 
 // Function to retrieve user data
 export const getUserData = async (userId) => {
@@ -886,5 +886,746 @@ export const getTopProducts = async (limit = 5) => {
       error: error.message || "Error fetching top products",
       data: [],
     };
+  }
+};
+
+export const updateTransactionStatus = async (
+  userId,
+  transactionId,
+  newStatus
+) => {
+  try {
+    // Coba update di jalur users/{userId}/transactions/{transactionId} dulu
+    const userTransactionRef = ref(
+      db,
+      `users/${userId}/transactions/${transactionId}`
+    );
+    const userTransSnapshot = await get(userTransactionRef);
+
+    if (userTransSnapshot.exists()) {
+      // Update status di jalur user
+      await update(userTransactionRef, {
+        status: newStatus,
+        updatedAt: Date.now(),
+      });
+      return { success: true, path: "user" };
+    }
+
+    // Jika tidak ditemukan di user, coba di jalur transactions/{transactionId}
+    const rootTransactionRef = ref(db, `transactions/${transactionId}`);
+    const rootTransSnapshot = await get(rootTransactionRef);
+
+    if (rootTransSnapshot.exists()) {
+      // Update status di root
+      await update(rootTransactionRef, {
+        status: newStatus,
+        updatedAt: Date.now(),
+      });
+      return { success: true, path: "root" };
+    }
+
+    // Jika transaksi tidak ditemukan di kedua jalur
+    return {
+      success: false,
+      error: "Transaksi tidak ditemukan",
+    };
+  } catch (error) {
+    console.error("Error updating transaction status:", error);
+    return {
+      success: false,
+      error: error.message || "Gagal mengupdate status transaksi",
+      fullError: error, // Untuk debugging
+    };
+  }
+};
+
+/**
+ * Fungsi untuk mengupdate status transaksi dari semua user (khusus admin)
+ * @param {string} transactionId - ID transaksi yang akan diupdate
+ * @param {string} newStatus - Status baru untuk transaksi
+ * @returns {Promise<Object>} - Objek hasil operasi dengan status success
+ */
+export const updateTransactionStatusAdmin = async (
+  transactionId,
+  newStatus
+) => {
+  try {
+    // Coba update di jalur transactions/{transactionId} dulu
+    const rootTransactionRef = ref(db, `transactions/${transactionId}`);
+    const rootTransSnapshot = await get(rootTransactionRef);
+
+    if (rootTransSnapshot.exists()) {
+      // Update status di root
+      await update(rootTransactionRef, {
+        status: newStatus,
+        updatedAt: Date.now(),
+      });
+      return { success: true, path: "root" };
+    }
+
+    // Jika tidak ditemukan di root, cari di semua user
+    const usersRef = ref(db, "users");
+    const usersSnapshot = await get(usersRef);
+
+    if (!usersSnapshot.exists()) {
+      return { success: false, error: "Tidak ada data user" };
+    }
+
+    const users = usersSnapshot.val();
+    let transactionFound = false;
+
+    for (const userId in users) {
+      if (
+        users[userId].transactions &&
+        users[userId].transactions[transactionId]
+      ) {
+        // Update transaksi di user ini
+        const userTransactionRef = ref(
+          db,
+          `users/${userId}/transactions/${transactionId}`
+        );
+        await update(userTransactionRef, {
+          status: newStatus,
+          updatedAt: Date.now(),
+        });
+        transactionFound = true;
+        break;
+      }
+    }
+
+    if (transactionFound) {
+      return { success: true, path: "user" };
+    }
+
+    // Jika transaksi tidak ditemukan di manapun
+    return {
+      success: false,
+      error: "Transaksi tidak ditemukan di sistem",
+    };
+  } catch (error) {
+    console.error("Error updating transaction status:", error);
+    return {
+      success: false,
+      error: error.message || "Gagal mengupdate status transaksi",
+      fullError: error, // Untuk debugging
+    };
+  }
+};
+
+// Fungsi untuk mendapatkan semua produk
+// export const getAllProducts = async () => {
+//   try {
+//     const productsRef = ref(db, "products");
+//     const snapshot = await get(productsRef);
+
+//     if (snapshot.exists()) {
+//       const productsData = snapshot.val();
+//       // Konversi dari object ke array dengan id
+//       const productsArray = Object.keys(productsData).map((key) => ({
+//         id: key,
+//         ...productsData[key],
+//       }));
+
+//       return productsArray;
+//     } else {
+//       console.log("No products available");
+//       return [];
+//     }
+//   } catch (error) {
+//     console.error("Error getting products:", error);
+//     throw error;
+//   }
+// };
+
+// Fungsi untuk menyimpan produk baru
+export const addProduct = async (productData) => {
+  try {
+    const productsRef = ref(db, "products");
+    // Generate ID baru menggunakan push
+    const newProductRef = push(productsRef);
+    // Simpan data dengan ID yang baru dibuat
+    await set(newProductRef, {
+      ...productData,
+      createdAt: new Date().toISOString(),
+    });
+
+    return {
+      success: true,
+      id: newProductRef.key,
+      message: "Product added successfully",
+    };
+  } catch (error) {
+    console.error("Error adding product:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to add product",
+    };
+  }
+};
+
+// Fungsi untuk memperbarui produk yang sudah ada
+export const updateProduct = async (productId, productData) => {
+  try {
+    const productRef = ref(db, `products/${productId}`);
+
+    // Get existing product data first
+    const snapshot = await get(productRef);
+    if (!snapshot.exists()) {
+      return {
+        success: false,
+        error: "Product not found",
+      };
+    }
+
+    // Update product with new data while preserving createdAt
+    const existingData = snapshot.val();
+
+    // Handle missing createdAt by creating one if it doesn't exist
+    const createdAt = existingData.createdAt || new Date().toISOString();
+
+    await update(productRef, {
+      ...productData,
+      updatedAt: new Date().toISOString(),
+      createdAt: createdAt, // Use the createdAt we determined above
+    });
+
+    return {
+      success: true,
+      message: "Product updated successfully",
+    };
+  } catch (error) {
+    console.error("Error updating product:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to update product",
+    };
+  }
+};
+
+// Fungsi untuk menyimpan produk (bisa add baru atau update)
+export const saveProduct = async (productData) => {
+  try {
+    // Cek apakah produk sudah memiliki ID
+    if (productData.id) {
+      // Jika ada ID, update produk yang sudah ada
+      // Make sure we don't pass undefined values
+      const cleanProductData = { ...productData };
+
+      // Remove any undefined values to prevent Firebase errors
+      Object.keys(cleanProductData).forEach((key) => {
+        if (cleanProductData[key] === undefined) {
+          delete cleanProductData[key];
+        }
+      });
+
+      return await updateProduct(productData.id, cleanProductData);
+    } else {
+      // Jika tidak ada ID, buat produk baru
+      return await addProduct(productData);
+    }
+  } catch (error) {
+    console.error("Error saving product:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to save product",
+    };
+  }
+};
+
+// Fungsi untuk menghapus produk
+export const deleteProduct = async (productId) => {
+  try {
+    const productRef = ref(db, `products/${productId}`);
+
+    // Cek apakah produk ada
+    const snapshot = await get(productRef);
+    if (!snapshot.exists()) {
+      return {
+        success: false,
+        error: "Product not found",
+      };
+    }
+
+    // Hapus produk
+    await remove(productRef);
+
+    return {
+      success: true,
+      message: "Product deleted successfully",
+    };
+  } catch (error) {
+    console.error("Error deleting product:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to delete product",
+    };
+  }
+};
+
+// Fungsi untuk mencari produk berdasarkan nama
+export const searchProductsByName = async (searchTerm) => {
+  try {
+    // Firebase Realtime Database tidak mendukung pencarian teks lengkap
+    // Jadi kita ambil semua data dan filter di sisi klien
+    const productsRef = ref(db, "products");
+    const snapshot = await get(productsRef);
+
+    if (snapshot.exists()) {
+      const productsData = snapshot.val();
+      const productsArray = Object.keys(productsData)
+        .map((key) => ({
+          id: key,
+          ...productsData[key],
+        }))
+        .filter(
+          (product) =>
+            product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (product.description &&
+              product.description
+                .toLowerCase()
+                .includes(searchTerm.toLowerCase()))
+        );
+
+      return productsArray;
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error("Error searching products:", error);
+    throw error;
+  }
+};
+
+// Base reference for customers
+const customersRef = ref(db, "users");
+
+// Get all customers
+// export const getAllCustomers = async () => {
+//   try {
+//     const snapshot = await get(customersRef);
+
+//     if (snapshot.exists()) {
+//       const customersData = snapshot.val();
+//       // Convert object to array with IDs
+//       return Object.keys(customersData).map((key) => ({
+//         id: key,
+//         ...customersData[key],
+//       }));
+//     } else {
+//       return [];
+//     }
+//   } catch (error) {
+//     console.error("Error fetching customers:", error);
+//     throw error;
+//   }
+// };
+
+// Fungsi untuk mengambil data user berdasarkan email
+export const getCustomerByEmail = async (email) => {
+  if (!email) {
+    throw new Error("Email is required");
+  }
+
+  try {
+    // Membuat query untuk mencari user dengan email yang cocok
+    const usersRef = collection(db, "users");
+    const q = query(usersRef, where("email", "==", email));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      throw new Error("User not found");
+    }
+
+    // Mengambil data user pertama yang ditemukan
+    const userDoc = querySnapshot.docs[0];
+    return { id: userDoc.id, ...userDoc.data() };
+  } catch (error) {
+    console.error("Error fetching user by email:", error);
+    throw error;
+  }
+};
+
+export const searchCustomers = async (searchText) => {
+  try {
+    // First get all customers
+    const allCustomers = await getAllCustomers();
+
+    // Then filter on the client side (Firebase Realtime DB has limited query capabilities)
+    if (!searchText) return allCustomers;
+
+    const lowercaseSearch = searchText.toLowerCase();
+    return allCustomers.filter(
+      (customer) =>
+        customer.nama?.toLowerCase().includes(lowercaseSearch) ||
+        customer.email?.toLowerCase().includes(lowercaseSearch) ||
+        customer.nohp?.toLowerCase().includes(lowercaseSearch)
+    );
+  } catch (error) {
+    console.error("Error searching customers:", error);
+    throw error;
+  }
+};
+
+// Referensi ke koleksi users
+const usersRef = ref(db, "users");
+// Fungsi untuk mengupdate data user
+export const updateCustomer = async (uid, userData) => {
+  if (!uid) {
+    throw new Error("User ID is required");
+  }
+
+  try {
+    // Gunakan ref untuk Realtime Database
+    const userRef = ref(db, `users/${uid}`);
+    // Gunakan update untuk Realtime Database
+    await update(userRef, userData);
+    return true;
+  } catch (error) {
+    console.error("Error updating user:", error);
+    throw error;
+  }
+};
+
+// Fungsi untuk menghapus user
+export const deleteCustomer = async (uid) => {
+  if (!uid) {
+    throw new Error("User ID is required");
+  }
+
+  try {
+    // Gunakan ref untuk Realtime Database
+    const userRef = ref(db, `users/${uid}`);
+    // Gunakan remove untuk Realtime Database
+    await remove(userRef);
+    return true;
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    throw error;
+  }
+};
+
+// Fungsi untuk membuat user baru
+export const createCustomer = async (customerData) => {
+  try {
+    // Buat referensi untuk data pelanggan baru
+    const newCustomerRef = push(usersRef);
+    const newCustomerId = newCustomerRef.key;
+
+    // Set data dengan key baru
+    await set(newCustomerRef, {
+      ...customerData,
+      createdAt: new Date().toISOString(),
+    });
+
+    return {
+      id: newCustomerId,
+      ...customerData,
+    };
+  } catch (error) {
+    console.error("Error creating customer:", error);
+    throw error;
+  }
+};
+
+// Fungsi untuk mendapatkan data pelanggan berdasarkan ID
+export const getCustomerById = async (uid) => {
+  if (!uid) {
+    throw new Error("User ID is required");
+  }
+
+  try {
+    const snapshot = await get(child(usersRef, uid));
+    if (snapshot.exists()) {
+      return {
+        id: uid,
+        ...snapshot.val(),
+      };
+    } else {
+      throw new Error("Customer not found");
+    }
+  } catch (error) {
+    console.error("Error getting customer:", error);
+    throw error;
+  }
+};
+
+// Fungsi untuk mendapatkan semua pelanggan
+export const getAllCustomers = async () => {
+  try {
+    const snapshot = await get(usersRef);
+    if (snapshot.exists()) {
+      const customers = [];
+      snapshot.forEach((childSnapshot) => {
+        customers.push({
+          id: childSnapshot.key,
+          ...childSnapshot.val(),
+        });
+      });
+      return customers;
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error("Error getting customers:", error);
+    throw error;
+  }
+};
+
+// Save a new transaction to Firebase
+export const saveTransaction = async (transactionData) => {
+  try {
+    const db = getDatabase();
+    const newTransactionRef = push(ref(db, "offlinetransactions"));
+
+    // Add transaction ID to the data
+    const transactionWithId = {
+      ...transactionData,
+      id: newTransactionRef.key,
+    };
+
+    // Save the transaction data
+    await set(newTransactionRef, transactionWithId);
+
+    // Return the transaction with its ID
+    return transactionWithId;
+  } catch (error) {
+    console.error("Error saving transaction:", error);
+    throw error;
+  }
+};
+
+// Get all offline transactions
+export const getOfflineTransactions = async () => {
+  try {
+    const db = getDatabase();
+    const transactionsRef = ref(db, "offlinetransactions");
+    const snapshot = await get(transactionsRef);
+
+    if (snapshot.exists()) {
+      // Convert Firebase object to array with keys as IDs
+      const transactions = [];
+      snapshot.forEach((childSnapshot) => {
+        transactions.push(childSnapshot.val());
+      });
+      return transactions;
+    }
+
+    return [];
+  } catch (error) {
+    console.error("Error fetching transactions:", error);
+    throw error;
+  }
+};
+
+// Get transactions by date range
+export const getTransactionsByDateRange = async (startDate, endDate) => {
+  try {
+    const db = getDatabase();
+    const transactionsRef = ref(db, "offlinetransactions");
+
+    // Query transactions by date
+    const transactionsQuery = query(
+      transactionsRef,
+      orderByChild("createdAt"),
+      startAt(startDate),
+      endAt(endDate)
+    );
+
+    const snapshot = await get(transactionsQuery);
+
+    if (snapshot.exists()) {
+      const transactions = [];
+      snapshot.forEach((childSnapshot) => {
+        transactions.push(childSnapshot.val());
+      });
+      return transactions;
+    }
+
+    return [];
+  } catch (error) {
+    console.error("Error fetching transactions by date range:", error);
+    throw error;
+  }
+};
+
+// Generate reports from transactions
+export const generateReport = async (startDate, endDate) => {
+  try {
+    // Get transactions within the date range
+    const transactions = await getTransactionsByDateRange(startDate, endDate);
+
+    // Calculate total revenue
+    const totalRevenue = transactions.reduce(
+      (sum, transaction) => sum + transaction.total,
+      0
+    );
+
+    // Count number of transactions
+    const transactionCount = transactions.length;
+
+    // Calculate product quantities sold
+    const productsSold = {};
+    transactions.forEach((transaction) => {
+      transaction.items.forEach((item) => {
+        if (productsSold[item.nama]) {
+          productsSold[item.nama].quantity += item.qty;
+          productsSold[item.nama].revenue += item.totalHarga;
+        } else {
+          productsSold[item.nama] = {
+            quantity: item.qty,
+            revenue: item.totalHarga,
+            unitPrice: item.harga,
+          };
+        }
+      });
+    });
+
+    // Calculate payment method distribution
+    const paymentMethods = {};
+    transactions.forEach((transaction) => {
+      const method = transaction.metodePembayaran;
+      if (paymentMethods[method]) {
+        paymentMethods[method].count += 1;
+        paymentMethods[method].amount += transaction.total;
+      } else {
+        paymentMethods[method] = {
+          count: 1,
+          amount: transaction.total,
+        };
+      }
+    });
+
+    // Create report object
+    const report = {
+      period: {
+        start: new Date(startDate).toISOString(),
+        end: new Date(endDate).toISOString(),
+      },
+      summary: {
+        totalRevenue,
+        transactionCount,
+        averageTransactionValue:
+          transactionCount > 0 ? totalRevenue / transactionCount : 0,
+      },
+      productsSold,
+      paymentMethods,
+      transactions: transactions.map((t) => ({
+        id: t.id,
+        date: t.tanggal,
+        customer: t.nama,
+        total: t.total,
+        paymentMethod: t.metodePembayaran,
+        itemCount: t.items.reduce((sum, item) => sum + item.qty, 0),
+      })),
+    };
+
+    // Save report to Firebase
+    const db = getDatabase();
+    const reportRef = push(ref(db, "reports"));
+
+    await set(reportRef, {
+      ...report,
+      id: reportRef.key,
+      createdAt: Date.now(),
+    });
+
+    return report;
+  } catch (error) {
+    console.error("Error generating report:", error);
+    throw error;
+  }
+};
+
+// Get saved reports
+export const getReports = async () => {
+  try {
+    const db = getDatabase();
+    const reportsRef = ref(db, "reports");
+    const snapshot = await get(reportsRef);
+
+    if (snapshot.exists()) {
+      const reports = [];
+      snapshot.forEach((childSnapshot) => {
+        reports.push(childSnapshot.val());
+      });
+      return reports;
+    }
+
+    return [];
+  } catch (error) {
+    console.error("Error fetching reports:", error);
+    throw error;
+  }
+};
+
+// Get top selling products within a date range
+export const getTopSellingProducts = async (startDate, endDate, limit = 5) => {
+  try {
+    const transactions = await getTransactionsByDateRange(startDate, endDate);
+
+    // Calculate product quantities sold
+    const productsSold = {};
+    transactions.forEach((transaction) => {
+      transaction.items.forEach((item) => {
+        if (productsSold[item.id]) {
+          productsSold[item.id].quantity += item.qty;
+          productsSold[item.id].revenue += item.totalHarga;
+          productsSold[item.id].name = item.nama; // Ensure we have the name
+        } else {
+          productsSold[item.id] = {
+            id: item.id,
+            name: item.nama,
+            quantity: item.qty,
+            revenue: item.totalHarga,
+            unitPrice: item.harga,
+            image: item.image,
+          };
+        }
+      });
+    });
+
+    // Convert to array and sort by quantity
+    const topProducts = Object.values(productsSold)
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, limit);
+
+    return topProducts;
+  } catch (error) {
+    console.error("Error getting top selling products:", error);
+    throw error;
+  }
+};
+
+// Get daily revenue for a specific date range
+export const getDailyRevenue = async (startDate, endDate) => {
+  try {
+    const transactions = await getTransactionsByDateRange(startDate, endDate);
+
+    // Calculate daily revenue
+    const dailyRevenue = {};
+    transactions.forEach((transaction) => {
+      // Get date part only
+      const date = new Date(transaction.tanggal).toISOString().split("T")[0];
+
+      if (dailyRevenue[date]) {
+        dailyRevenue[date] += transaction.total;
+      } else {
+        dailyRevenue[date] = transaction.total;
+      }
+    });
+
+    // Convert to array format for easier charting
+    const revenueData = Object.keys(dailyRevenue).map((date) => ({
+      date,
+      revenue: dailyRevenue[date],
+    }));
+
+    // Sort by date
+    revenueData.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    return revenueData;
+  } catch (error) {
+    console.error("Error getting daily revenue:", error);
+    throw error;
   }
 };

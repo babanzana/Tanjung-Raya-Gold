@@ -8,8 +8,11 @@ import {
   Image,
   Alert,
   StyleSheet,
+  Dimensions,
 } from "react-native";
 import { DUMMY_PRODUCTS } from "../../../../dummy";
+import { saveTransaction } from "../../../../../firebase";
+const { height } = Dimensions.get("window");
 
 interface Product {
   id: number;
@@ -41,6 +44,7 @@ export const PenjualanOfflineScreen = () => {
   const [paymentMethod, setPaymentMethod] = useState("Tunai");
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     // Load products from dummy data
@@ -58,6 +62,11 @@ export const PenjualanOfflineScreen = () => {
   }, [searchTerm, products]);
 
   const handleAddProduct = (product: Product) => {
+    if (product.stock <= 0) {
+      Alert.alert("Error", "Stok produk tidak tersedia!");
+      return;
+    }
+
     const existingProductIndex = selectedProducts.findIndex(
       (p) => p.id === product.id
     );
@@ -141,7 +150,7 @@ export const PenjualanOfflineScreen = () => {
     );
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (selectedProducts.length === 0) {
       Alert.alert("Error", "Tambahkan minimal 1 produk!");
       return;
@@ -152,32 +161,44 @@ export const PenjualanOfflineScreen = () => {
       return;
     }
 
-    // Here you would typically send the transaction data to your backend
-    const newTransaction = {
-      id: Date.now(),
-      tanggal: new Date().toISOString(),
-      nama: customerName,
-      alamat: customerAddress,
-      items: selectedProducts,
-      total: calculateTotal(),
-      status: "Selesai",
-      metodePembayaran: paymentMethod,
-      buktiPembayaran: "",
-    };
+    setIsLoading(true);
 
-    console.log("New transaction:", newTransaction);
-    Alert.alert("Success", "Transaksi offline berhasil dicatat!");
+    try {
+      // Prepare transaction data
+      const newTransaction = {
+        tanggal: new Date().toISOString(),
+        nama: customerName,
+        alamat: customerAddress || "-",
+        items: selectedProducts,
+        total: calculateTotal(),
+        status: "Selesai",
+        metodePembayaran: paymentMethod,
+        buktiPembayaran: "",
+        type: "offline",
+        createdAt: Date.now(),
+      };
 
-    // Reset form
-    setSelectedProducts([]);
-    setCustomerName("");
-    setCustomerAddress("");
-    setPaymentMethod("Tunai");
+      // Save transaction to Firebase
+      await saveTransaction(newTransaction);
+
+      Alert.alert("Sukses", "Transaksi offline berhasil disimpan!");
+
+      // Reset form
+      setSelectedProducts([]);
+      setCustomerName("");
+      setCustomerAddress("");
+      setPaymentMethod("Tunai");
+    } catch (error) {
+      console.error("Error saving transaction:", error);
+      Alert.alert("Error", "Gagal menyimpan transaksi. Silakan coba lagi.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <View style={styles.container}>
-      <ScrollView>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.contentContainer}>
           {/* Product Selection */}
           <View style={styles.productSelection}>
@@ -190,38 +211,46 @@ export const PenjualanOfflineScreen = () => {
               onChangeText={setSearchTerm}
             />
 
-            <ScrollView style={styles.productList}>
-              {filteredProducts.map((product) => (
-                <View key={product.id} style={styles.productItem}>
-                  <Image
-                    source={{ uri: product.image }}
-                    style={styles.productImage}
-                  />
-                  <View style={styles.productInfo}>
-                    <Text style={styles.productName}>{product.name}</Text>
-                    <Text style={styles.productCategory}>
-                      {product.category}
-                    </Text>
-                    <Text style={styles.productPrice}>
-                      Rp {product.price.toLocaleString("id-ID")}
-                    </Text>
-                    <Text style={styles.productStock}>
-                      Stok: {product.stock}
-                    </Text>
+            {/* Fixed height for product list with ScrollView */}
+            <View style={styles.productListContainer}>
+              <ScrollView style={styles.productList} nestedScrollEnabled={true}>
+                {filteredProducts.map((product) => (
+                  <View key={product.id} style={styles.productItem}>
+                    <Image
+                      source={{ uri: product.image }}
+                      style={styles.productImage}
+                    />
+                    <View style={styles.productInfo}>
+                      <Text style={styles.productName}>{product.name}</Text>
+                      <Text style={styles.productCategory}>
+                        {product.category}
+                      </Text>
+                      <Text style={styles.productPrice}>
+                        Rp {product.price.toLocaleString("id-ID")}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.productStock,
+                          product.stock <= 0 && styles.outOfStock,
+                        ]}
+                      >
+                        Stok: {product.stock}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handleAddProduct(product)}
+                      disabled={product.stock <= 0}
+                      style={[
+                        styles.addButton,
+                        product.stock <= 0 && styles.disabledButton,
+                      ]}
+                    >
+                      <Text style={styles.buttonText}>Tambah</Text>
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity
-                    onPress={() => handleAddProduct(product)}
-                    disabled={product.stock <= 0}
-                    style={[
-                      styles.addButton,
-                      product.stock <= 0 && styles.disabledButton,
-                    ]}
-                  >
-                    <Text style={styles.buttonText}>Tambah</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
+                ))}
+              </ScrollView>
+            </View>
           </View>
 
           {/* Transaction Summary */}
@@ -234,6 +263,7 @@ export const PenjualanOfflineScreen = () => {
                 style={styles.input}
                 value={customerName}
                 onChangeText={setCustomerName}
+                placeholder="Masukkan nama pelanggan"
               />
 
               <Text style={styles.label}>Alamat (Opsional)</Text>
@@ -241,6 +271,9 @@ export const PenjualanOfflineScreen = () => {
                 style={styles.input}
                 value={customerAddress}
                 onChangeText={setCustomerAddress}
+                placeholder="Masukkan alamat (opsional)"
+                multiline={true}
+                numberOfLines={2}
               />
 
               <Text style={styles.label}>Metode Pembayaran</Text>
@@ -287,49 +320,54 @@ export const PenjualanOfflineScreen = () => {
               {selectedProducts.length === 0 ? (
                 <Text style={styles.emptyText}>Belum ada produk dipilih</Text>
               ) : (
-                <ScrollView style={styles.selectedProductsList}>
-                  {selectedProducts.map((item) => (
-                    <View key={item.id} style={styles.selectedProductItem}>
-                      <Image
-                        source={{ uri: item.image }}
-                        style={styles.selectedProductImage}
-                      />
-                      <View style={styles.selectedProductInfo}>
-                        <Text style={styles.selectedProductName}>
-                          {item.nama}
-                        </Text>
-                        <View style={styles.quantityControl}>
-                          <TouchableOpacity
-                            onPress={() =>
-                              handleQuantityChange(item.id, item.qty - 1)
-                            }
-                            style={styles.quantityButton}
-                          >
-                            <Text>-</Text>
-                          </TouchableOpacity>
-                          <Text style={styles.quantityText}>{item.qty}</Text>
-                          <TouchableOpacity
-                            onPress={() =>
-                              handleQuantityChange(item.id, item.qty + 1)
-                            }
-                            style={styles.quantityButton}
-                          >
-                            <Text>+</Text>
-                          </TouchableOpacity>
-                          <Text style={styles.selectedProductPrice}>
-                            Rp {item.totalHarga.toLocaleString("id-ID")}
+                <View style={styles.selectedProductsContainer}>
+                  <ScrollView
+                    style={styles.selectedProductsList}
+                    nestedScrollEnabled={true}
+                  >
+                    {selectedProducts.map((item) => (
+                      <View key={item.id} style={styles.selectedProductItem}>
+                        <Image
+                          source={{ uri: item.image }}
+                          style={styles.selectedProductImage}
+                        />
+                        <View style={styles.selectedProductInfo}>
+                          <Text style={styles.selectedProductName}>
+                            {item.nama}
                           </Text>
+                          <View style={styles.quantityControl}>
+                            <TouchableOpacity
+                              onPress={() =>
+                                handleQuantityChange(item.id, item.qty - 1)
+                              }
+                              style={styles.quantityButton}
+                            >
+                              <Text>-</Text>
+                            </TouchableOpacity>
+                            <Text style={styles.quantityText}>{item.qty}</Text>
+                            <TouchableOpacity
+                              onPress={() =>
+                                handleQuantityChange(item.id, item.qty + 1)
+                              }
+                              style={styles.quantityButton}
+                            >
+                              <Text>+</Text>
+                            </TouchableOpacity>
+                            <Text style={styles.selectedProductPrice}>
+                              Rp {item.totalHarga.toLocaleString("id-ID")}
+                            </Text>
+                          </View>
                         </View>
+                        <TouchableOpacity
+                          onPress={() => handleRemoveProduct(item.id)}
+                          style={styles.deleteButton}
+                        >
+                          <Text style={styles.deleteButtonText}>×</Text>
+                        </TouchableOpacity>
                       </View>
-                      <TouchableOpacity
-                        onPress={() => handleRemoveProduct(item.id)}
-                        style={styles.deleteButton}
-                      >
-                        <Text style={styles.deleteButtonText}>×</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </ScrollView>
+                    ))}
+                  </ScrollView>
+                </View>
               )}
 
               <View style={styles.totalContainer}>
@@ -340,10 +378,16 @@ export const PenjualanOfflineScreen = () => {
               </View>
 
               <TouchableOpacity
-                style={styles.submitButton}
+                style={[
+                  styles.submitButton,
+                  isLoading && styles.disabledButton,
+                ]}
                 onPress={handleSubmit}
+                disabled={isLoading}
               >
-                <Text style={styles.submitButtonText}>Simpan Transaksi</Text>
+                <Text style={styles.submitButtonText}>
+                  {isLoading ? "Menyimpan..." : "Simpan Transaksi"}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -356,21 +400,17 @@ export const PenjualanOfflineScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
     backgroundColor: "#f5f5f5",
   },
-  header: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 16,
-    color: "#333",
+  scrollContainer: {
+    flexGrow: 1,
+    padding: 16,
   },
   contentContainer: {
     flex: 1,
     flexDirection: "column",
   },
   productSelection: {
-    flex: 2,
     backgroundColor: "white",
     borderRadius: 8,
     padding: 16,
@@ -382,7 +422,6 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   transactionSummary: {
-    flex: 1,
     backgroundColor: "white",
     borderRadius: 8,
     padding: 16,
@@ -391,6 +430,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+    marginBottom: 16,
   },
   sectionHeader: {
     fontSize: 18,
@@ -402,20 +442,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 4,
-    padding: 8,
+    padding: 10,
     marginBottom: 12,
   },
+  productListContainer: {
+    height: height * 0.35, // Use 35% of screen height
+    borderWidth: 1,
+    borderColor: "#eee",
+    borderRadius: 8,
+  },
   productList: {
-    maxHeight: 300,
+    flex: 1,
   },
   productItem: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#eee",
-    borderRadius: 8,
-    padding: 8,
-    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+    padding: 10,
   },
   productImage: {
     width: 64,
@@ -428,20 +472,28 @@ const styles = StyleSheet.create({
   },
   productName: {
     fontWeight: "500",
+    fontSize: 14,
   },
   productCategory: {
     fontSize: 12,
     color: "#666",
+    marginTop: 2,
   },
   productPrice: {
     fontWeight: "bold",
+    marginTop: 2,
+    color: "#2980b9",
   },
   productStock: {
     fontSize: 12,
+    marginTop: 2,
+  },
+  outOfStock: {
+    color: "#e74c3c",
   },
   addButton: {
     backgroundColor: "#3498db",
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 4,
   },
@@ -450,16 +502,18 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: "white",
+    fontWeight: "500",
   },
   label: {
     fontWeight: "500",
     marginBottom: 4,
+    marginTop: 8,
   },
   input: {
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 4,
-    padding: 8,
+    padding: 10,
     marginBottom: 12,
   },
   pickerContainer: {
@@ -483,18 +537,24 @@ const styles = StyleSheet.create({
     color: "#999",
     fontStyle: "italic",
     marginBottom: 12,
+    paddingVertical: 8,
+  },
+  selectedProductsContainer: {
+    height: 150,
+    borderWidth: 1,
+    borderColor: "#eee",
+    borderRadius: 8,
+    marginBottom: 12,
   },
   selectedProductsList: {
-    maxHeight: 150,
-    marginBottom: 12,
+    flex: 1,
   },
   selectedProductItem: {
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
-    paddingBottom: 8,
-    marginBottom: 8,
+    padding: 8,
   },
   selectedProductImage: {
     width: 48,
@@ -507,6 +567,7 @@ const styles = StyleSheet.create({
   },
   selectedProductName: {
     fontWeight: "500",
+    fontSize: 14,
   },
   quantityControl: {
     flexDirection: "row",
@@ -517,22 +578,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 4,
-    width: 24,
-    height: 24,
+    width: 28,
+    height: 28,
     justifyContent: "center",
     alignItems: "center",
   },
   quantityText: {
     marginHorizontal: 8,
+    minWidth: 20,
+    textAlign: "center",
   },
   selectedProductPrice: {
     marginLeft: "auto",
     fontWeight: "bold",
+    color: "#2980b9",
   },
   deleteButton: {
     marginLeft: 8,
-    width: 24,
-    height: 24,
+    width: 28,
+    height: 28,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -555,6 +619,7 @@ const styles = StyleSheet.create({
   totalAmount: {
     fontWeight: "bold",
     fontSize: 16,
+    color: "#2980b9",
   },
   submitButton: {
     backgroundColor: "#2ecc71",

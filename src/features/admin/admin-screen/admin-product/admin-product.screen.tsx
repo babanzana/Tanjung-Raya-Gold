@@ -1,5 +1,4 @@
-// admin-product.screen.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   FlatList,
@@ -9,71 +8,153 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  RefreshControl,
+  Alert,
 } from "react-native";
-import { DUMMY_PRODUCTS } from "../../../../dummy";
-import { addInitialProducts, getAllProducts } from "../../../../../firebase";
+import { getAllProducts, deleteProduct } from "../../../../../firebase";
 import { ActivityIndicator } from "react-native-paper";
+import { useIsFocused } from "@react-navigation/native";
 
 export const AdminProductScreen = ({ navigation }: any) => {
-  const [products, setProducts] = useState<any>();
-  // console.log("🚀 ~ AdminProductScreen ~ products:", products);
+  const [products, setProducts] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [sortBy, setSortBy] = useState<string>("name");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
 
-  const categories = ["All", ...new Set(DUMMY_PRODUCTS.map((p) => p.category))];
+  const isFocused = useIsFocused();
+
+  const getUniqueCategories = useCallback(() => {
+    // Fix: Check if products exists and is an array before using forEach
+    if (!products || !Array.isArray(products) || products.length === 0)
+      return ["All"];
+
+    const categoriesSet = new Set();
+
+    products.forEach((product) => {
+      if (product.category) {
+        categoriesSet.add(product.category);
+      }
+    });
+
+    return ["All", ...Array.from(categoriesSet)] as string[];
+  }, [products]);
+
+  // Fix: Only call getUniqueCategories when products is available
+  const categories = getUniqueCategories();
 
   const filteredProducts = products?.filter((product: any) => {
     const matchesCategory =
       selectedCategory === "All" || product.category === selectedCategory;
     const matchesSearch =
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchQuery.toLowerCase());
+      product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.category?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
   const sortedProducts = [...(filteredProducts || [])].sort((a, b) => {
-    if (sortBy === "name") return a.name.localeCompare(b.name);
-    if (sortBy === "price") return a.price - b.price;
-    if (sortBy === "stock") return a.stock - b.stock;
+    if (sortBy === "name") return a.name?.localeCompare(b.name) || 0;
+    if (sortBy === "price") return (a.price || 0) - (b.price || 0);
+    if (sortBy === "stock") return (a.stock || 0) - (b.stock || 0);
     return 0;
   });
 
-  const [isLoading, setIsLoading] = useState<boolean>(true); // State untuk menandakan loading
+  const fetchProducts = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const productsData = await getAllProducts();
 
-  useEffect(() => {
-    // Panggil getAllProducts dan simpan data produk ke dalam state
-    const fetchProducts = async () => {
-      try {
-        // addInitialProducts(); // Tambahkan data awal jika belum ada
-        const productsData = await getAllProducts(); // Ambil data produk
-        // console.log("🚀 ~ fetchProducts ~ productsData:", productsData);
-
-        if (productsData) {
-          setProducts(productsData); // Simpan data produk ke dalam state
+      if (productsData) {
+        // Handle Firebase object format (convert object to array)
+        if (typeof productsData === "object" && !Array.isArray(productsData)) {
+          const productsArray = Object.entries(productsData).map(
+            ([key, value]) => {
+              // If the key is already stored in the object as id, use that
+              // Otherwise, use the Firebase key as id
+              const v = value as any;
+              return {
+                id: v && typeof v === "object" && v.id ? v.id : key,
+                ...(v && typeof v === "object" ? v : {}),
+              };
+            }
+          );
+          setProducts(productsArray);
         } else {
-          console.error("Failed to fetch products: Invalid data format");
+          // If already an array, use as is
+          setProducts(Array.isArray(productsData) ? productsData : []);
         }
-      } catch (error) {
-        console.error("Error fetching products:", error);
-      } finally {
-        setIsLoading(false); // Set isLoading menjadi false setelah proses pengambilan data selesai
+      } else {
+        console.error("Failed to fetch products: Invalid data format");
+        setProducts([]); // Set empty array as fallback
       }
-    };
-
-    fetchProducts(); // Panggil fungsi untuk mengambil data produk saat komponen pertama kali dimuat
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      Alert.alert("Error", "Failed to load products. Please try again.");
+      setProducts([]); // Set empty array on error
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
-  // // Pastikan imageUrl ada sebelum memanggil split
-  // const imageUrl = products?.image; // Ambil URL gambar dari produk pertama
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchProducts();
+  }, [fetchProducts]);
 
-  // // Periksa apakah imageUrl ada sebelum mencoba melakukan split
-  // const fileId = imageUrl ? imageUrl.split("/file/d/")[1]?.split("/")[0] : null;
+  useEffect(() => {
+    if (isFocused) {
+      fetchProducts();
+    }
+  }, [isFocused, fetchProducts]);
 
-  // // Format ulang URL jika fileId ada
-  // const displayUrl = fileId
-  //   ? `https://drive.google.com/uc?export=view&id=${fileId}`
-  //   : null;
+  const handleAddProduct = () => {
+    navigation.navigate("AdminProductEdit", { product: undefined });
+  };
+
+  const handleDeleteProduct = (productId: string, productName: string) => {
+    Alert.alert(
+      "Confirm Delete",
+      `Are you sure you want to delete "${productName}"?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setIsLoading(true);
+              const result = await deleteProduct(productId);
+
+              if (result.success) {
+                setProducts((prevProducts) =>
+                  prevProducts.filter((product) => product.id !== productId)
+                );
+                Alert.alert("Success", "Product deleted successfully");
+              } else {
+                Alert.alert(
+                  "Error",
+                  result.error || "Failed to delete product"
+                );
+              }
+            } catch (error) {
+              console.error("Error deleting product:", error);
+              Alert.alert(
+                "Error",
+                "Failed to delete product. Please try again."
+              );
+            } finally {
+              setIsLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -84,22 +165,18 @@ export const AdminProductScreen = ({ navigation }: any) => {
   };
 
   const renderProductItem = ({ item }: { item: any }) => {
-    // Pastikan imageUrl ada sebelum memanggil split
-    const imageUrl = item?.image; // Ambil URL gambar dari produk
+    const imageUrl = item?.image;
 
-    // Periksa apakah imageUrl ada sebelum mencoba melakukan split
     const fileId = imageUrl
       ? imageUrl.split("/file/d/")[1]?.split("/")[0]
       : null;
 
-    // Format ulang URL jika fileId ada
     const displayUrl = fileId
       ? `https://drive.google.com/uc?export=view&id=${fileId}`
       : null;
 
     return (
       <View style={styles.productCard}>
-        {/* Hanya tampilkan gambar jika displayUrl valid */}
         {displayUrl || item.image ? (
           <Image
             source={{ uri: displayUrl || item?.image }}
@@ -126,7 +203,10 @@ export const AdminProductScreen = ({ navigation }: any) => {
           >
             <Text style={styles.buttonText}>Edit</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.deleteButton}>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => handleDeleteProduct(item.id, item.name)}
+          >
             <Text style={styles.buttonText}>Delete</Text>
           </TouchableOpacity>
         </View>
@@ -134,9 +214,45 @@ export const AdminProductScreen = ({ navigation }: any) => {
     );
   };
 
+  // Render sort buttons
+  const renderSortButtons = () => {
+    const sortOptions = [
+      { key: "name", label: "Name" },
+      { key: "price", label: "Price" },
+      { key: "stock", label: "Stock" },
+    ];
+
+    return (
+      <View style={styles.sortContainer}>
+        <Text style={styles.sortLabel}>Sort by:</Text>
+        <View style={styles.sortButtonsContainer}>
+          {sortOptions.map((option) => (
+            <TouchableOpacity
+              key={option.key}
+              style={[
+                styles.sortButton,
+                sortBy === option.key && styles.activeSortButton,
+              ]}
+              onPress={() => setSortBy(option.key)}
+            >
+              <Text
+                style={
+                  sortBy === option.key
+                    ? styles.activeSortText
+                    : styles.inactiveSortText
+                }
+              >
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
-      {/* Search Bar */}
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
@@ -153,7 +269,6 @@ export const AdminProductScreen = ({ navigation }: any) => {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryScroll}
-          // refreshControl={}
         >
           {categories.map((category) => (
             <TouchableOpacity
@@ -176,84 +291,35 @@ export const AdminProductScreen = ({ navigation }: any) => {
             </TouchableOpacity>
           ))}
         </ScrollView>
-
-        {/* Sort Options */}
-        {/* <View style={styles.sortContainer}> */}
-        {/* <Text style={styles.sortLabel}>Sorted By:</Text> */}
-        {/* <View style={styles.sortButtonsContainer}>
-            <TouchableOpacity
-              style={[
-                styles.sortButton,
-                sortBy === "name" && styles.activeSortButton,
-              ]}
-              onPress={() => setSortBy("name")}
-            >
-              <Text
-                style={
-                  sortBy === "name"
-                    ? styles.activeSortText
-                    : styles.inactiveSortText
-                }
-              >
-                Name
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.sortButton,
-                sortBy === "price" && styles.activeSortButton,
-              ]}
-              onPress={() => setSortBy("price")}
-            >
-              <Text
-                style={
-                  sortBy === "price"
-                    ? styles.activeSortText
-                    : styles.inactiveSortText
-                }
-              >
-                Price
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.sortButton,
-                sortBy === "stock" && styles.activeSortButton,
-              ]}
-              onPress={() => setSortBy("stock")}
-            >
-              <Text
-                style={
-                  sortBy === "stock"
-                    ? styles.activeSortText
-                    : styles.inactiveSortText
-                }
-              >
-                Stock
-              </Text>
-            </TouchableOpacity>
-          </View> */}
-        {/* </View> */}
       </View>
+
+      {/* Sort Options */}
+      {renderSortButtons()}
 
       {!isLoading ? (
         <FlatList
           data={sortedProducts}
           renderItem={renderProductItem}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) =>
+            item.id ? item.id.toString() : Math.random().toString()
+          }
           contentContainerStyle={styles.productList}
           ListEmptyComponent={
             <Text style={styles.emptyText}>No products found</Text>
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={["#007bff"]}
+            />
           }
         />
       ) : (
         <ActivityIndicator size="large" color="#0000ff" />
       )}
 
-      <TouchableOpacity
-        // onPress={() => navigation.navigate("AdminProductEdit")}
-        style={styles.addButton}
-      >
+      <TouchableOpacity onPress={handleAddProduct} style={styles.addButton}>
         <Text style={styles.addButtonText}>+ Add New Product</Text>
       </TouchableOpacity>
     </View>
@@ -301,7 +367,7 @@ const styles = StyleSheet.create({
     color: "white",
   },
   sortContainer: {
-    marginTop: 12,
+    marginBottom: 12,
   },
   sortLabel: {
     marginBottom: 8,
@@ -318,6 +384,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     backgroundColor: "#e0e0e0",
+    marginRight: 8,
   },
   activeSortButton: {
     backgroundColor: "#007bff",

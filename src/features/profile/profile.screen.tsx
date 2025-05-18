@@ -50,66 +50,6 @@ export const ProfileScreen = ({ route, navigation }: any) => {
     address: "Jl. Raya No. 123, Pontianak",
   });
 
-  // const [wishlist, setWishlist] = useState<Product[]>([
-  //   {
-  //     id: 1,
-  //     name: "Emas Batangan 1 Gram",
-  //     price: 985000,
-  //     quantity: 1,
-  //     image:
-  //       "https://www.logammulia.com/uploads/ngc_master_item/5cdcae8ad46b6_20190516072754-2.jpg",
-  //     category: "Batangan",
-  //     stock: 15,
-  //   },
-  //   {
-  //     id: 8,
-  //     name: "Emas Koin 0.2 Gram",
-  //     category: "Koin",
-  //     price: 500000,
-  //     quantity: 1,
-  //     stock: 25,
-  //     rating: 4.6,
-  //     image:
-  //       "https://www.static-src.com/wcsstore/Indraprastha/images/catalog/full//catalog-image/108/MTA-150699626/idn_bulion_citraperkasa_idn_bulion_angpao_naga_koin_emas_logam_mulia_-0-2_g_-_24k_-_999-9_gold-_full09_isgvag1j.jpg",
-  //     description:
-  //       "Koin emas setengah gram dengan gambar khusus edisi terbatas.",
-  //   },
-  //   {
-  //     id: 9,
-  //     name: "Emas Koin 0.5 Gram",
-  //     category: "Koin",
-  //     price: 990000,
-  //     quantity: 3,
-  //     stock: 18,
-  //     rating: 4.7,
-  //     image:
-  //       "https://images.tokopedia.net/img/cache/700/VqbcmM/2021/2/13/04829d0c-a545-40c7-a88d-7f688b136c51.jpg",
-  //     description:
-  //       "Koin emas 1 gram dengan kemasan eksklusif. Nilai investasi yang stabil.",
-  //   },
-  // ]);
-
-  // const [transactionHistory, setTransactionHistory] = useState<Product[]>([
-  //   {
-  //     id: 1,
-  //     name: "Emas Batangan 1 Gram",
-  //     price: 985000,
-  //     quantity: 1,
-  //     image:
-  //       "https://www.logammulia.com/uploads/ngc_master_item/5cdcae8ad46b6_20190516072754-2.jpg",
-  //     category: "Batangan",
-  //   },
-  //   {
-  //     id: 9,
-  //     name: "Emas Koin 0.5 Gram",
-  //     category: "Koin",
-  //     price: 990000,
-  //     quantity: 3,
-  //     image:
-  //       "https://images.tokopedia.net/img/cache/700/VqbcmM/2021/2/13/04829d0c-a545-40c7-a88d-7f688b136c51.jpg",
-  //   },
-  // ]);
-
   const menuItems: MenuItem[] = [
     {
       id: 1,

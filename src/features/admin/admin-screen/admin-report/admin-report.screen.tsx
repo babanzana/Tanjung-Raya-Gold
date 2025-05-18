@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   ScrollView,
@@ -14,23 +14,59 @@ import {
   DataTable,
   Divider,
   Menu,
+  Portal,
+  Modal,
 } from "react-native-paper";
-// import DateTimePicker from 'expo-date-picker';
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system";
-import XLSX from "xlsx";
-import { DUMMY_TRANSACTION } from "../../../../dummy";
+import XLSX from "xlsx"; // Adjust path as needed
+import { getTransactionsByDateRange } from "../../../../../firebase";
 
 export const AdminReportScreen = () => {
+  // State for date filters
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+
+  // State for modal visibility
+  const [startDateModalVisible, setStartDateModalVisible] = useState(false);
+  const [endDateModalVisible, setEndDateModalVisible] = useState(false);
+
+  // State for temporary date selection
+  const [tempYear, setTempYear] = useState(new Date().getFullYear());
+  const [tempMonth, setTempMonth] = useState(new Date().getMonth() + 1);
+  const [tempDay, setTempDay] = useState(new Date().getDate());
+  const [currentDateType, setCurrentDateType] = useState(null); // "start" or "end"
+
+  // State for export menu
   const [menuVisible, setMenuVisible] = useState(false);
 
-  // Format tanggal untuk tampilan
-  const formatDateDisplay = (date: Date | null) => {
+  // State for data
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Helper functions for date generation
+  const generateYears = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = currentYear - 5; i <= currentYear + 1; i++) {
+      years.push(i);
+    }
+    return years;
+  };
+
+  const generateMonths = () => {
+    return Array.from({ length: 12 }, (_, i) => i + 1);
+  };
+
+  const generateDays = () => {
+    // Get days in the selected month
+    const daysInMonth = new Date(tempYear, tempMonth, 0).getDate();
+    return Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  };
+
+  // Format date for display
+  const formatDateDisplay = (date: any) => {
     if (!date) return "Pilih Tanggal";
     return date.toLocaleDateString("id-ID", {
       day: "2-digit",
@@ -39,36 +75,77 @@ export const AdminReportScreen = () => {
     });
   };
 
-  // Handler untuk date picker
-  const handleStartDateChange = (date: Date) => {
-    setStartDate(date);
-    setShowStartDatePicker(false);
+  // Open date picker modal
+  const openDateModal = (dateType: any) => {
+    setCurrentDateType(dateType);
+
+    // Set initial temp values based on current selection or default to today
+    const currentDate = dateType === "start" ? startDate : endDate;
+    if (currentDate) {
+      setTempYear(currentDate.getFullYear());
+      setTempMonth(currentDate.getMonth() + 1);
+      setTempDay(currentDate.getDate());
+    } else {
+      const today = new Date();
+      setTempYear(today.getFullYear());
+      setTempMonth(today.getMonth() + 1);
+      setTempDay(today.getDate());
+    }
+
+    // Show the appropriate modal
+    if (dateType === "start") {
+      setStartDateModalVisible(true);
+    } else {
+      setEndDateModalVisible(true);
+    }
   };
 
-  const handleEndDateChange = (date: Date) => {
-    setEndDate(date);
-    setShowEndDatePicker(false);
+  // Save the selected date
+  const saveSelectedDate = () => {
+    const selectedDate = new Date(tempYear, tempMonth - 1, tempDay);
+
+    if (currentDateType === "start") {
+      setStartDate(selectedDate);
+      setStartDateModalVisible(false);
+    } else {
+      setEndDate(selectedDate);
+      setEndDateModalVisible(false);
+    }
   };
 
-  // Filter transaksi berdasarkan rentang tanggal
-  const filteredTransactions = DUMMY_TRANSACTION.filter((transaction) => {
-    const transactionDate = new Date(transaction.tanggal);
-    if (startDate && transactionDate < startDate) return false;
-    if (endDate && transactionDate > endDate) return false;
-    return true;
-  });
+  // Fetch dashboard data based on date range
+  const fetchTransactionData = async () => {
+    if (!startDate || !endDate) {
+      Alert.alert("Error", "Pilih rentang tanggal terlebih dahulu");
+      return;
+    }
 
-  // Hitung statistik
-  const totalTransactions = filteredTransactions.length;
-  const totalRevenue = filteredTransactions.reduce(
-    (sum, transaction) => sum + transaction.total,
-    0
-  );
-  const avgTransaction =
-    totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
+    try {
+      setLoading(true);
 
-  // Format mata uang
-  const formatCurrency = (amount: number) => {
+      // Convert dates to timestamps for Firebase query
+      const startTimestamp = startDate.getTime();
+      const endTimestamp = endDate.getTime() + (24 * 60 * 60 * 1000 - 1); // End of the day
+
+      const result = await getTransactionsByDateRange(
+        startTimestamp,
+        endTimestamp
+      );
+      setTransactions(result);
+    } catch (error) {
+      console.error("Error fetching transaction data:", error);
+      Alert.alert(
+        "Error",
+        "Terjadi kesalahan saat mengambil data: " +
+          (error instanceof Error ? error.message : String(error))
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Format currency
+  const formatCurrency = (amount: any) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
@@ -76,7 +153,16 @@ export const AdminReportScreen = () => {
     }).format(amount);
   };
 
-  // Export ke PDF
+  // Calculate statistics
+  const totalTransactions = transactions.length;
+  const totalRevenue = transactions.reduce(
+    (sum, transaction) => sum + transaction.total,
+    0
+  );
+  const avgTransaction =
+    totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
+
+  // Export to PDF
   const exportToPDF = async () => {
     try {
       const html = `
@@ -113,7 +199,7 @@ export const AdminReportScreen = () => {
                 </tr>
               </thead>
               <tbody>
-                ${filteredTransactions
+                ${transactions
                   .map(
                     (transaction) => `
                   <tr>
@@ -123,7 +209,7 @@ export const AdminReportScreen = () => {
                     )}</td>
                     <td>${transaction.nama}</td>
                     <td>${transaction.items
-                      .map((item) => item.nama)
+                      .map((item: any) => item.nama)
                       .join(", ")}</td>
                     <td>${formatCurrency(transaction.total)}</td>
                     <td>${transaction.status}</td>
@@ -148,17 +234,17 @@ export const AdminReportScreen = () => {
     }
   };
 
-  // Export ke Excel
+  // Export to Excel
   const exportToExcel = async () => {
     try {
       // Prepare data
       const worksheetData = [
         ["ID", "Tanggal", "Nama", "Items", "Total", "Status"],
-        ...filteredTransactions.map((transaction) => [
+        ...transactions.map((transaction) => [
           transaction.id,
           new Date(transaction.tanggal).toLocaleDateString("id-ID"),
           transaction.nama,
-          transaction.items.map((item) => item.nama).join(", "),
+          transaction.items.map((item: any) => item.nama).join(", "),
           transaction.total,
           transaction.status,
         ]),
@@ -195,47 +281,43 @@ export const AdminReportScreen = () => {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {/* Filter Section */}
-      <Card style={styles.filterCard}>
+      <Card style={styles.card}>
+        <Card.Title title="Filter Laporan" />
         <Card.Content>
-          <Text style={styles.sectionTitle}>Filter Tanggal</Text>
-          <View style={styles.dateFilterContainer}>
-            <View style={styles.dateInputContainer}>
-              <Text style={styles.dateLabel}>Dari:</Text>
-              <Button
-                mode="outlined"
-                onPress={() => setShowStartDatePicker(true)}
-                icon="calendar"
-              >
-                {formatDateDisplay(startDate)}
-              </Button>
-              {/* {showStartDatePicker && (
-                <DateTimePicker
-                  value={startDate || new Date()}
-                  onChange={handleStartDateChange}
-                  onCancel={() => setShowStartDatePicker(false)}
-                />
-              )} */}
-            </View>
-
-            <View style={styles.dateInputContainer}>
-              <Text style={styles.dateLabel}>Sampai:</Text>
-              <Button
-                mode="outlined"
-                onPress={() => setShowEndDatePicker(true)}
-                icon="calendar"
-              >
-                {formatDateDisplay(endDate)}
-              </Button>
-              {/* {showEndDatePicker && (
-                <DateTimePicker
-                  value={endDate || new Date()}
-                  onChange={handleEndDateChange}
-                  onCancel={() => setShowEndDatePicker(false)}
-                  minimumDate={startDate || undefined}
-                />
-              )} */}
-            </View>
+          <View style={styles.datePickerContainer}>
+            <Text style={styles.datePickerLabel}>Dari Tanggal</Text>
+            <Button
+              mode="outlined"
+              onPress={() => openDateModal("start")}
+              icon="calendar"
+              style={styles.dateButton}
+              contentStyle={styles.dateButtonContent}
+            >
+              {formatDateDisplay(startDate)}
+            </Button>
           </View>
+
+          <View style={styles.datePickerContainer}>
+            <Text style={styles.datePickerLabel}>Sampai Tanggal</Text>
+            <Button
+              mode="outlined"
+              onPress={() => openDateModal("end")}
+              icon="calendar"
+              style={styles.dateButton}
+              contentStyle={styles.dateButtonContent}
+            >
+              {formatDateDisplay(endDate)}
+            </Button>
+          </View>
+
+          <Button
+            mode="contained"
+            onPress={fetchTransactionData}
+            style={styles.filterButton}
+            disabled={loading}
+          >
+            {loading ? "Memuat..." : "Tampilkan Laporan"}
+          </Button>
         </Card.Content>
       </Card>
 
@@ -274,6 +356,7 @@ export const AdminReportScreen = () => {
             onPress={() => setMenuVisible(true)}
             style={styles.exportButton}
             icon="file-export"
+            disabled={transactions.length === 0}
           >
             Export Laporan
           </Button>
@@ -299,15 +382,15 @@ export const AdminReportScreen = () => {
 
       {/* Transactions List */}
       <Text style={[styles.sectionTitle, { marginTop: 16 }]}>
-        Daftar Transaksi ({filteredTransactions.length})
+        Daftar Transaksi ({transactions.length})
       </Text>
 
-      {filteredTransactions.length === 0 ? (
+      {transactions.length === 0 ? (
         <Text style={styles.emptyText}>
-          Tidak ada transaksi pada periode ini
+          {loading ? "Memuat data..." : "Tidak ada transaksi pada periode ini"}
         </Text>
       ) : (
-        filteredTransactions.map((transaction) => (
+        transactions.map((transaction) => (
           <Card key={transaction.id} style={styles.transactionCard}>
             <Card.Content>
               <View style={styles.transactionHeader}>
@@ -355,12 +438,244 @@ export const AdminReportScreen = () => {
           </Card>
         ))
       )}
+
+      {/* Modal untuk pemilihan tanggal - Tanggal Awal */}
+      <Portal>
+        <Modal
+          visible={startDateModalVisible}
+          onDismiss={() => setStartDateModalVisible(false)}
+          contentContainerStyle={styles.modalContainer}
+        >
+          <Card style={styles.modalCard}>
+            <Card.Title title="Pilih Tanggal Awal" />
+            <Card.Content>
+              <View style={styles.dateInputRow}>
+                <View style={styles.dateInputContainer}>
+                  <Text style={styles.dateInputLabel}>Tahun</Text>
+                  <View style={styles.pickerContainer}>
+                    <ScrollView style={styles.picker}>
+                      {generateYears().map((year) => (
+                        <TouchableOpacity
+                          key={year}
+                          style={[
+                            styles.pickerItem,
+                            tempYear === year && styles.selectedPickerItem,
+                          ]}
+                          onPress={() => setTempYear(year)}
+                        >
+                          <Text
+                            style={[
+                              styles.pickerItemText,
+                              tempYear === year &&
+                                styles.selectedPickerItemText,
+                            ]}
+                          >
+                            {year}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+
+                <View style={styles.dateInputContainer}>
+                  <Text style={styles.dateInputLabel}>Bulan</Text>
+                  <View style={styles.pickerContainer}>
+                    <ScrollView style={styles.picker}>
+                      {generateMonths().map((month) => (
+                        <TouchableOpacity
+                          key={month}
+                          style={[
+                            styles.pickerItem,
+                            tempMonth === month && styles.selectedPickerItem,
+                          ]}
+                          onPress={() => setTempMonth(month)}
+                        >
+                          <Text
+                            style={[
+                              styles.pickerItemText,
+                              tempMonth === month &&
+                                styles.selectedPickerItemText,
+                            ]}
+                          >
+                            {month}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+
+                <View style={styles.dateInputContainer}>
+                  <Text style={styles.dateInputLabel}>Tanggal</Text>
+                  <View style={styles.pickerContainer}>
+                    <ScrollView style={styles.picker}>
+                      {generateDays().map((day) => (
+                        <TouchableOpacity
+                          key={day}
+                          style={[
+                            styles.pickerItem,
+                            tempDay === day && styles.selectedPickerItem,
+                          ]}
+                          onPress={() => setTempDay(day)}
+                        >
+                          <Text
+                            style={[
+                              styles.pickerItemText,
+                              tempDay === day && styles.selectedPickerItemText,
+                            ]}
+                          >
+                            {day}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.modalButtonContainer}>
+                <Button
+                  mode="outlined"
+                  onPress={() => setStartDateModalVisible(false)}
+                  style={styles.modalButton}
+                >
+                  Batal
+                </Button>
+                <Button
+                  mode="contained"
+                  onPress={saveSelectedDate}
+                  style={styles.modalButton}
+                >
+                  Pilih
+                </Button>
+              </View>
+            </Card.Content>
+          </Card>
+        </Modal>
+      </Portal>
+
+      {/* Modal untuk pemilihan tanggal - Tanggal Akhir */}
+      <Portal>
+        <Modal
+          visible={endDateModalVisible}
+          onDismiss={() => setEndDateModalVisible(false)}
+          contentContainerStyle={styles.modalContainer}
+        >
+          <Card style={styles.modalCard}>
+            <Card.Title title="Pilih Tanggal Akhir" />
+            <Card.Content>
+              <View style={styles.dateInputRow}>
+                <View style={styles.dateInputContainer}>
+                  <Text style={styles.dateInputLabel}>Tahun</Text>
+                  <View style={styles.pickerContainer}>
+                    <ScrollView style={styles.picker}>
+                      {generateYears().map((year) => (
+                        <TouchableOpacity
+                          key={year}
+                          style={[
+                            styles.pickerItem,
+                            tempYear === year && styles.selectedPickerItem,
+                          ]}
+                          onPress={() => setTempYear(year)}
+                        >
+                          <Text
+                            style={[
+                              styles.pickerItemText,
+                              tempYear === year &&
+                                styles.selectedPickerItemText,
+                            ]}
+                          >
+                            {year}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+
+                <View style={styles.dateInputContainer}>
+                  <Text style={styles.dateInputLabel}>Bulan</Text>
+                  <View style={styles.pickerContainer}>
+                    <ScrollView style={styles.picker}>
+                      {generateMonths().map((month) => (
+                        <TouchableOpacity
+                          key={month}
+                          style={[
+                            styles.pickerItem,
+                            tempMonth === month && styles.selectedPickerItem,
+                          ]}
+                          onPress={() => setTempMonth(month)}
+                        >
+                          <Text
+                            style={[
+                              styles.pickerItemText,
+                              tempMonth === month &&
+                                styles.selectedPickerItemText,
+                            ]}
+                          >
+                            {month}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+
+                <View style={styles.dateInputContainer}>
+                  <Text style={styles.dateInputLabel}>Tanggal</Text>
+                  <View style={styles.pickerContainer}>
+                    <ScrollView style={styles.picker}>
+                      {generateDays().map((day) => (
+                        <TouchableOpacity
+                          key={day}
+                          style={[
+                            styles.pickerItem,
+                            tempDay === day && styles.selectedPickerItem,
+                          ]}
+                          onPress={() => setTempDay(day)}
+                        >
+                          <Text
+                            style={[
+                              styles.pickerItemText,
+                              tempDay === day && styles.selectedPickerItemText,
+                            ]}
+                          >
+                            {day}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.modalButtonContainer}>
+                <Button
+                  mode="outlined"
+                  onPress={() => setEndDateModalVisible(false)}
+                  style={styles.modalButton}
+                >
+                  Batal
+                </Button>
+                <Button
+                  mode="contained"
+                  onPress={saveSelectedDate}
+                  style={styles.modalButton}
+                >
+                  Pilih
+                </Button>
+              </View>
+            </Card.Content>
+          </Card>
+        </Modal>
+      </Portal>
     </ScrollView>
   );
 };
 
 // Helper function untuk warna status
-const getStatusColor = (status: string) => {
+const getStatusColor = (status: any) => {
   switch (status) {
     case "Selesai":
       return "#4CAF50";
@@ -382,13 +697,25 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
   },
-  title: {
+  card: {
     marginBottom: 16,
-    fontWeight: "bold",
-    textAlign: "center",
   },
-  filterCard: {
+  datePickerContainer: {
     marginBottom: 16,
+  },
+  datePickerLabel: {
+    marginBottom: 8,
+    fontSize: 14,
+    color: "#666",
+  },
+  dateButton: {
+    width: "100%",
+  },
+  dateButtonContent: {
+    justifyContent: "flex-start",
+  },
+  filterButton: {
+    marginTop: 8,
   },
   summaryCard: {
     marginBottom: 16,
@@ -398,20 +725,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 12,
     color: "#333",
-  },
-  dateFilterContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 8,
-  },
-  dateInputContainer: {
-    flex: 1,
-    marginRight: 8,
-  },
-  dateLabel: {
-    marginBottom: 4,
-    fontSize: 14,
-    color: "#666",
   },
   exportButton: {
     marginBottom: 16,
@@ -458,6 +771,59 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 12,
     fontWeight: "bold",
+  },
+  // Modal styles
+  modalContainer: {
+    padding: 20,
+  },
+  modalCard: {
+    width: "100%",
+  },
+  dateInputRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  dateInputContainer: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  dateInputLabel: {
+    marginBottom: 8,
+    textAlign: "center",
+    fontWeight: "bold",
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 4,
+    height: 150,
+    overflow: "hidden",
+  },
+  picker: {
+    flex: 1,
+  },
+  pickerItem: {
+    padding: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  selectedPickerItem: {
+    backgroundColor: "#E8F5E9",
+  },
+  pickerItemText: {
+    fontSize: 16,
+  },
+  selectedPickerItemText: {
+    fontWeight: "bold",
+    color: "#4CAF50",
+  },
+  modalButtonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginTop: 20,
+  },
+  modalButton: {
+    width: "40%",
   },
 });
 

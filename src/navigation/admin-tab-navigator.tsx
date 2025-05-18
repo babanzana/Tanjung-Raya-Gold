@@ -7,7 +7,7 @@ import { AdminLayoutContainer } from "../features/admin/admin-screen/admin-layou
 import { AdminProductContainer } from "../features/admin/admin-screen/admin-product/admin-product.container";
 import { AdminProductDetailContainer } from "../features/admin/admin-screen/admin-product-detail/admin-product-detail.container";
 import { AdminCustomersContainer } from "../features/admin/admin-screen/admin-customers/admin-customers.container";
-import { AdminCustomersDetailContainer } from "../features/admin/admin-screen/admin-customers-edit/admin-customers-detail.container";
+import { AdminCustomersDetailContainer } from "../features/admin/admin-screen/admin-customers-detail/admin-customers-detail.container";
 import { AdminDashboardContainer } from "../features/admin/admin-screen/admin-dashboard/admin-dashboard.container";
 import { AdminTransactionsContainer } from "../features/admin/admin-screen/admin-transactions/admin-transactions.container";
 import { AdminReportContainer } from "../features/admin/admin-screen/admin-report/admin-report.container";

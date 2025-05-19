@@ -16,12 +16,17 @@ import {
   Menu,
   Portal,
   Modal,
+  Checkbox,
 } from "react-native-paper";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system";
 import XLSX from "xlsx"; // Adjust path as needed
-import { getTransactionsByDateRange } from "../../../../../firebase";
+import {
+  getTransactionsByDateRange,
+  getAllTransactionHistory,
+  getOfflineTransactions,
+} from "../../../../../firebase";
 
 export const AdminReportScreen = () => {
   // State for date filters
@@ -44,6 +49,10 @@ export const AdminReportScreen = () => {
   // State for data
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // State for transaction source selection
+  const [includeOffline, setIncludeOffline] = useState(true);
+  const [includeOnline, setIncludeOnline] = useState(true);
 
   // Helper functions for date generation
   const generateYears = () => {
@@ -113,7 +122,7 @@ export const AdminReportScreen = () => {
     }
   };
 
-  // Fetch dashboard data based on date range
+  // Fetch combined transactions data
   const fetchTransactionData = async () => {
     if (!startDate || !endDate) {
       Alert.alert("Error", "Pilih rentang tanggal terlebih dahulu");
@@ -127,11 +136,61 @@ export const AdminReportScreen = () => {
       const startTimestamp = startDate.getTime();
       const endTimestamp = endDate.getTime() + (24 * 60 * 60 * 1000 - 1); // End of the day
 
-      const result = await getTransactionsByDateRange(
-        startTimestamp,
-        endTimestamp
-      );
-      setTransactions(result);
+      let combinedTransactions: any[] = [];
+
+      // Fetch offline transactions if selected
+      if (includeOffline) {
+        const offlineResult = await getTransactionsByDateRange(
+          startTimestamp,
+          endTimestamp
+        );
+
+        // Add source identifier for filter/display purposes
+        const markedOfflineTransactions = offlineResult.map((transaction) => ({
+          ...transaction,
+          source: "offline",
+        }));
+
+        combinedTransactions = [
+          ...combinedTransactions,
+          ...markedOfflineTransactions,
+        ];
+      }
+
+      // Fetch online transactions if selected
+      if (includeOnline) {
+        const onlineResult = await getAllTransactionHistory();
+
+        if (onlineResult.success && onlineResult.data) {
+          // Filter by date range and add source identifier
+          const filteredOnlineTransactions = onlineResult.data
+            .filter((transaction) => {
+              const transactionDate = new Date(transaction.tanggal).getTime();
+              return (
+                transactionDate >= startTimestamp &&
+                transactionDate <= endTimestamp
+              );
+            })
+            .map((transaction) => ({
+              ...transaction,
+              source: "online",
+            }));
+
+          combinedTransactions = [
+            ...combinedTransactions,
+            ...filteredOnlineTransactions,
+          ];
+        }
+      }
+
+      // Sort all transactions by date (newest first)
+      combinedTransactions.sort((a, b) => {
+        const dateA = new Date(a.tanggal || a.createdAt).getTime();
+        const dateB = new Date(b.tanggal || b.createdAt).getTime();
+        return dateB - dateA;
+      });
+
+      setTransactions(combinedTransactions);
     } catch (error) {
       console.error("Error fetching transaction data:", error);
       Alert.alert(
@@ -156,11 +215,16 @@ export const AdminReportScreen = () => {
   // Calculate statistics
   const totalTransactions = transactions.length;
   const totalRevenue = transactions.reduce(
-    (sum, transaction) => sum + transaction.total,
+    (sum, transaction) => sum + (transaction.total || 0),
     0
   );
   const avgTransaction =
     totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
+
+  // Helper function to get transaction date
+  const getTransactionDate = (transaction: any) => {
+    return transaction.tanggal || transaction.createdAt;
+  };
 
   // Export to PDF
   const exportToPDF = async () => {
@@ -175,6 +239,15 @@ export const AdminReportScreen = () => {
               th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
               th { background-color: #f2f2f2; }
               .summary { margin-bottom: 20px; }
+              .source-tag { 
+                display: inline-block;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 11px;
+                margin-left: 5px;
+              }
+              .online { background-color: #e3f2fd; color: #0d47a1; }
+              .offline { background-color: #f1f8e9; color: #33691e; }
             </style>
           </head>
           <body>
@@ -196,6 +269,7 @@ export const AdminReportScreen = () => {
                   <th>Items</th>
                   <th>Total</th>
                   <th>Status</th>
+                  <th>Sumber</th>
                 </tr>
               </thead>
               <tbody>
@@ -204,15 +278,24 @@ export const AdminReportScreen = () => {
                     (transaction) => `
                   <tr>
                     <td>${transaction.id}</td>
-                    <td>${new Date(transaction.tanggal).toLocaleDateString(
-                      "id-ID"
-                    )}</td>
-                    <td>${transaction.nama}</td>
-                    <td>${transaction.items
-                      .map((item: any) => item.nama)
+                    <td>${new Date(
+                      getTransactionDate(transaction)
+                    ).toLocaleDateString("id-ID")}</td>
+                    <td>${transaction.nama || "N/A"}</td>
+                    <td>${(transaction.items || [])
+                      .map((item: any) => item.nama || "Item")
                       .join(", ")}</td>
-                    <td>${formatCurrency(transaction.total)}</td>
-                    <td>${transaction.status}</td>
+                    <td>${formatCurrency(transaction.total || 0)}</td>
+                    <td>${transaction.status || "N/A"}</td>
+                    <td>
+                      <span class="source-tag ${
+                        transaction.source === "online" ? "online" : "offline"
+                      }">
+                        ${
+                          transaction.source === "online" ? "Online" : "Offline"
+                        }
+                      </span>
+                    </td>
                   </tr>
                 `
                   )
@@ -239,14 +322,17 @@ export const AdminReportScreen = () => {
     try {
       // Prepare data
       const worksheetData = [
-        ["ID", "Tanggal", "Nama", "Items", "Total", "Status"],
+        ["ID", "Tanggal", "Nama", "Items", "Total", "Status", "Sumber"],
         ...transactions.map((transaction) => [
           transaction.id,
-          new Date(transaction.tanggal).toLocaleDateString("id-ID"),
-          transaction.nama,
-          transaction.items.map((item: any) => item.nama).join(", "),
-          transaction.total,
-          transaction.status,
+          new Date(getTransactionDate(transaction)).toLocaleDateString("id-ID"),
+          transaction.nama || "N/A",
+          (transaction.items || [])
+            .map((item: any) => item.nama || "Item")
+            .join(", "),
+          transaction.total || 0,
+          transaction.status || "N/A",
+          transaction.source === "online" ? "Online" : "Offline",
         ]),
       ];
 
@@ -310,11 +396,29 @@ export const AdminReportScreen = () => {
             </Button>
           </View>
 
+          {/* Data Source Checkboxes */}
+          <View style={styles.dataSourceContainer}>
+            <View style={styles.checkboxContainer}>
+              <Checkbox
+                status={includeOffline ? "checked" : "unchecked"}
+                onPress={() => setIncludeOffline(!includeOffline)}
+              />
+              <Text style={styles.checkboxLabel}>Transaksi Offline</Text>
+            </View>
+            <View style={styles.checkboxContainer}>
+              <Checkbox
+                status={includeOnline ? "checked" : "unchecked"}
+                onPress={() => setIncludeOnline(!includeOnline)}
+              />
+              <Text style={styles.checkboxLabel}>Transaksi Online</Text>
+            </View>
+          </View>
+
           <Button
             mode="contained"
             onPress={fetchTransactionData}
             style={styles.filterButton}
-            disabled={loading}
+            disabled={loading || (!includeOffline && !includeOnline)}
           >
             {loading ? "Memuat..." : "Tampilkan Laporan"}
           </Button>
@@ -394,33 +498,52 @@ export const AdminReportScreen = () => {
           <Card key={transaction.id} style={styles.transactionCard}>
             <Card.Content>
               <View style={styles.transactionHeader}>
-                <Text variant="titleSmall">ID: {transaction.id}</Text>
+                <View style={styles.transactionHeader}>
+                  <Text variant="titleSmall">ID: {transaction.id}</Text>
+                  {transaction.source && (
+                    <View
+                      style={[
+                        styles.sourceTag,
+                        transaction.source === "online"
+                          ? styles.sourceTagOnline
+                          : styles.sourceTagOffline,
+                      ]}
+                    >
+                      <Text style={styles.sourceTagText}>
+                        {transaction.source === "online" ? "Online" : "Offline"}
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 <Text variant="titleSmall" style={styles.transactionDate}>
-                  {new Date(transaction.tanggal).toLocaleDateString("id-ID", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {new Date(getTransactionDate(transaction)).toLocaleDateString(
+                    "id-ID",
+                    {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }
+                  )}
                 </Text>
               </View>
 
               <Text variant="bodyMedium" style={styles.customerName}>
-                {transaction.nama}
+                {transaction.nama || "N/A"}
               </Text>
 
               <View style={styles.transactionDetails}>
                 <View>
                   <Text variant="bodySmall">
-                    Items: {transaction.items.length}
+                    Items: {(transaction.items || []).length}
                   </Text>
                   <Text variant="bodySmall">
-                    {transaction.metodePembayaran}
+                    {transaction.metodePembayaran || "N/A"}
                   </Text>
                 </View>
                 <Text variant="titleMedium" style={styles.transactionTotal}>
-                  {formatCurrency(transaction.total)}
+                  {formatCurrency(transaction.total || 0)}
                 </Text>
               </View>
 
@@ -431,7 +554,9 @@ export const AdminReportScreen = () => {
                     { backgroundColor: getStatusColor(transaction.status) },
                   ]}
                 >
-                  <Text style={styles.statusText}>{transaction.status}</Text>
+                  <Text style={styles.statusText}>
+                    {transaction.status || "N/A"}
+                  </Text>
                 </View>
               </View>
             </Card.Content>
@@ -824,6 +949,40 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     width: "40%",
+  },
+  sourceTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: "flex-start",
+    marginLeft: 8,
+    marginBottom: 2,
+  },
+  sourceTagOnline: {
+    backgroundColor: "#e3f2fd",
+  },
+  sourceTagOffline: {
+    backgroundColor: "#f1f8e9",
+  },
+  sourceTagText: {
+    fontSize: 11,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  dataSourceContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 16,
+  },
+  checkboxContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  checkboxLabel: {
+    fontSize: 14,
+    color: "#333",
   },
 });
 

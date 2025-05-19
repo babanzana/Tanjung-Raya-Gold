@@ -122,6 +122,7 @@ export const AdminCustomersScreen = ({ navigation }: any) => {
   };
 
   const renderCustomerItem = ({ item }: { item: any }) => {
+    // console.log("🚀 ~ renderCustomerItem ~ item:", item);
     return (
       <View style={styles.customerCard}>
         {/* <Image
@@ -131,9 +132,11 @@ export const AdminCustomersScreen = ({ navigation }: any) => {
         <View style={styles.customerInfo}>
           <Text style={styles.customerName}>{item.fullName || "No Name"}</Text>
           <Text style={styles.customerEmail}>{item.email || "No Email"}</Text>
-          <Text style={styles.customerPhone}>No. HP: {item.nohp || "-"}</Text>
+          <Text style={styles.customerPhone}>
+            No. HP: {item.phoneNumber || "-"}
+          </Text>
           <Text style={styles.customerAddress} numberOfLines={1}>
-            {item.alamat || "No Address"}
+            {item.address || "No Address"}
           </Text>
         </View>
         <View style={styles.customerActions}>

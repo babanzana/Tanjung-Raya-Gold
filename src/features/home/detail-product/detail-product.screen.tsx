@@ -276,11 +276,18 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.detailContainer}>
-          <Image
-            source={{ uri: displayUrl || product.image }}
-            style={styles.detailImage}
-            resizeMode="contain"
-          />
+          {displayUrl || product.image ? (
+            <Image
+              source={{ uri: displayUrl || product.image }}
+              style={styles.detailImage}
+              resizeMode="contain"
+            />
+          ) : (
+            <Image
+              source={require("../../../../assets/no_image.png")}
+              style={styles.detailImage}
+            />
+          )}
 
           <View style={styles.detailContent}>
             <Text style={styles.detailName}>{product.name}</Text>

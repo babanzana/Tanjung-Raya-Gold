@@ -93,25 +93,34 @@ export const TransactionHistoryScreen = ({ route, navigation }: any) => {
         {/* Display first product as the main item */}
         {item.items.length > 0 && (
           <View style={styles.productContainer}>
-            {/* Ambil gambar produk pertama */}
+            {/* Get image from first product */}
             {(() => {
-              const imageUrl = item.items[0]?.image; // Ambil URL gambar dari produk pertama
+              const imageUrl = item.items[0]?.image; // Get image URL from first product
 
-              // Periksa apakah imageUrl ada sebelum mencoba melakukan split
+              // Check if imageUrl exists before trying to split
               const fileId = imageUrl
                 ? imageUrl.split("/file/d/")[1]?.split("/")[0]
                 : null;
 
-              // Format ulang URL jika fileId ada
+              // Reformat URL if fileId exists
               const displayUrl = fileId
                 ? `https://drive.google.com/uc?export=view&id=${fileId}`
                 : null;
 
               return (
-                <Image
-                  source={{ uri: displayUrl || item.items[0]?.image }} // Gunakan displayUrl jika ada, atau fallback ke item.items[0].image
-                  style={styles.productImage}
-                />
+                <>
+                  {imageUrl ? (
+                    <Image
+                      source={{ uri: displayUrl || imageUrl }} // Use displayUrl if available, or fall back to the original imageUrl
+                      style={styles.productImage}
+                    />
+                  ) : (
+                    <Image
+                      source={require("../../../../assets/no_image.png")}
+                      style={styles.productImage}
+                    />
+                  )}
+                </>
               );
             })()}
 

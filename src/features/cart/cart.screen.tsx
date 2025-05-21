@@ -85,61 +85,78 @@ export const CartScreen = ({ navigation }: any) => {
   };
 
   // Render cart item
-  const renderItem = ({ item }: any) => (
-    <View style={styles.cartItem}>
-      <Image
-        source={{ uri: item.image }}
-        style={styles.itemImage}
-        resizeMode="contain"
-      />
-      <View style={styles.itemDetails}>
-        <Text style={styles.itemName}>{item.name}</Text>
-        <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
+  const renderItem = ({ item }: any) => {
+    const imageUrl = item.image;
+    const fileId = imageUrl
+      ? imageUrl.split("/file/d/")[1]?.split("/")[0]
+      : null;
 
-        <View style={styles.quantityContainer}>
-          <TouchableOpacity
-            style={[
-              styles.quantityButton,
-              item.quantity <= 1 && styles.disabledButton,
-            ]}
-            onPress={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-            disabled={item.quantity <= 1 || updating}
-          >
-            <Text style={styles.quantityText}>-</Text>
-          </TouchableOpacity>
+    const displayUrl = fileId
+      ? `https://drive.google.com/uc?export=view&id=${fileId}`
+      : null;
+    return (
+      <View style={styles.cartItem}>
+        {displayUrl || item.image ? (
+          <Image
+            source={{ uri: item.image }}
+            style={styles.itemImage}
+            resizeMode="contain"
+          />
+        ) : (
+          <Image
+            source={require("../../../assets/no_image.png")}
+            style={styles.itemImage}
+          />
+        )}
+        <View style={styles.itemDetails}>
+          <Text style={styles.itemName}>{item.name}</Text>
+          <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
 
-          {updating ? (
-            <ActivityIndicator size="small" color="#555" />
-          ) : (
-            <Text style={styles.quantity}>{item.quantity}</Text>
-          )}
+          <View style={styles.quantityContainer}>
+            <TouchableOpacity
+              style={[
+                styles.quantityButton,
+                item.quantity <= 1 && styles.disabledButton,
+              ]}
+              onPress={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+              disabled={item.quantity <= 1 || updating}
+            >
+              <Text style={styles.quantityText}>-</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.quantityButton,
-              item.quantity >= item.stock && styles.disabledButton,
-            ]}
-            onPress={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-            disabled={item.quantity >= item.stock || updating}
-          >
-            <Text style={styles.quantityText}>+</Text>
-          </TouchableOpacity>
+            {updating ? (
+              <ActivityIndicator size="small" color="#555" />
+            ) : (
+              <Text style={styles.quantity}>{item.quantity}</Text>
+            )}
+
+            <TouchableOpacity
+              style={[
+                styles.quantityButton,
+                item.quantity >= item.stock && styles.disabledButton,
+              ]}
+              onPress={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+              disabled={item.quantity >= item.stock || updating}
+            >
+              <Text style={styles.quantityText}>+</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.subtotal}>
+            Subtotal: {formatPrice(item.price * item.quantity)}
+          </Text>
         </View>
 
-        <Text style={styles.subtotal}>
-          Subtotal: {formatPrice(item.price * item.quantity)}
-        </Text>
+        <TouchableOpacity
+          style={styles.removeButton}
+          onPress={() => handleRemoveItem(item.id)}
+          disabled={updating}
+        >
+          <Text style={styles.removeText}>×</Text>
+        </TouchableOpacity>
       </View>
-
-      <TouchableOpacity
-        style={styles.removeButton}
-        onPress={() => handleRemoveItem(item.id)}
-        disabled={updating}
-      >
-        <Text style={styles.removeText}>×</Text>
-      </TouchableOpacity>
-    </View>
-  );
+    );
+  };
 
   if (loading) {
     return (

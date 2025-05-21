@@ -71,9 +71,9 @@ export const HomeScreen = ({ navigation }: any) => {
   // Make sure products exists before filtering
   const filteredProducts = products.filter((product) => {
     // Filter based on search
-    const matchesSearch = product?.name
-      ?.toLowerCase()
-      ?.includes(searchQuery.toLowerCase()) || false;
+    const matchesSearch =
+      product?.name?.toLowerCase()?.includes(searchQuery.toLowerCase()) ||
+      false;
 
     // Filter based on category
     const matchesCategory =
@@ -113,15 +113,22 @@ export const HomeScreen = ({ navigation }: any) => {
         onPress={() => handleProductPress(item)}
         disabled={item.stock === 0} // Disable click if stock is 0
       >
-        <Image
-          source={
-            item.stock === 0
-              ? require("./../../../assets/sold.png")
-              : { uri: displayUrl || item.image }
-          }
-          style={styles.productImage}
-          resizeMode="contain"
-        />
+        {displayUrl || item.image ? (
+          <Image
+            source={
+              item.stock === 0
+                ? require("./../../../assets/sold.png")
+                : { uri: displayUrl || item.image }
+            }
+            style={styles.productImage}
+            resizeMode="contain"
+          />
+        ) : (
+          <Image
+            source={require("../../../assets/no_image.png")}
+            style={styles.productImage}
+          />
+        )}
         <View style={styles.productInfo}>
           <Text style={styles.productName} numberOfLines={1}>
             {item.name}
@@ -196,8 +203,8 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   searchContainer: {
     padding: 10,

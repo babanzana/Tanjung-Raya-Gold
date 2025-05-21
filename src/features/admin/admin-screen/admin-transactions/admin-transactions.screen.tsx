@@ -47,32 +47,32 @@ export const AdminTransactionsScreen = () => {
     try {
       // Ambil transaksi online (dari users)
       const onlineResult = await getAllTransactionHistory();
-      
+
       // Ambil transaksi offline
       const offlineData = await getOfflineTransactions();
-      
+
       // Format transaksi offline untuk konsistensi dengan transaksi online
       const formattedOfflineData = offlineData.map((transaction) => ({
         ...transaction,
         transactionType: "offline", // Menambahkan tanda untuk membedakan tipe transaksi
       }));
-      
+
       // Format transaksi online dengan tanda
-      const formattedOnlineData = onlineResult.success 
+      const formattedOnlineData = onlineResult.success
         ? (onlineResult.data || []).map((transaction) => ({
             ...transaction,
             transactionType: "online", // Menambahkan tanda untuk membedakan tipe transaksi
           }))
         : [];
-      
+
       // Gabungkan kedua jenis transaksi
       const allTransactions = [...formattedOnlineData, ...formattedOfflineData];
-      
+
       // Urutkan transaksi berdasarkan tanggal (terbaru dulu)
       const sortedTransactions = allTransactions.sort((a, b) => {
         return new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime();
       });
-      
+
       setTransactions(sortedTransactions);
     } catch (error) {
       console.error("Error fetching transactions:", error);
@@ -86,7 +86,7 @@ export const AdminTransactionsScreen = () => {
   // Fungsi untuk mendapatkan transaksi yang difilter
   const getFilteredTransactions = () => {
     if (activeFilter === "all") return transactions;
-    return transactions.filter(t => t.transactionType === activeFilter);
+    return transactions.filter((t) => t.transactionType === activeFilter);
   };
 
   // Fungsi refresh dengan pull-to-refresh
@@ -212,46 +212,50 @@ export const AdminTransactionsScreen = () => {
       <View style={styles.filterContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <TouchableOpacity onPress={() => setActiveFilter("all")}>
-            <Chip 
-              selected={activeFilter === "all"} 
+            <Chip
+              selected={activeFilter === "all"}
               style={[
-                styles.filterChip, 
-                activeFilter === "all" && styles.activeFilterChip
+                styles.filterChip,
+                activeFilter === "all" && styles.activeFilterChip,
               ]}
               textStyle={activeFilter === "all" ? styles.activeFilterText : {}}
             >
               Semua
             </Chip>
           </TouchableOpacity>
-          
+
           <TouchableOpacity onPress={() => setActiveFilter("online")}>
-            <Chip 
-              selected={activeFilter === "online"} 
+            <Chip
+              selected={activeFilter === "online"}
               style={[
-                styles.filterChip, 
-                activeFilter === "online" && styles.activeFilterChip
+                styles.filterChip,
+                activeFilter === "online" && styles.activeFilterChip,
               ]}
-              textStyle={activeFilter === "online" ? styles.activeFilterText : {}}
+              textStyle={
+                activeFilter === "online" ? styles.activeFilterText : {}
+              }
             >
               Online
             </Chip>
           </TouchableOpacity>
-          
+
           <TouchableOpacity onPress={() => setActiveFilter("offline")}>
-            <Chip 
-              selected={activeFilter === "offline"} 
+            <Chip
+              selected={activeFilter === "offline"}
               style={[
-                styles.filterChip, 
-                activeFilter === "offline" && styles.activeFilterChip
+                styles.filterChip,
+                activeFilter === "offline" && styles.activeFilterChip,
               ]}
-              textStyle={activeFilter === "offline" ? styles.activeFilterText : {}}
+              textStyle={
+                activeFilter === "offline" ? styles.activeFilterText : {}
+              }
             >
               Offline
             </Chip>
           </TouchableOpacity>
         </ScrollView>
       </View>
-      
+
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
@@ -274,10 +278,14 @@ export const AdminTransactionsScreen = () => {
                   <View style={styles.cardHeader}>
                     <View style={styles.headingContainer}>
                       <Text variant="titleMedium">{transaction.nama}</Text>
-                      <Chip 
+                      <Chip
                         style={[
-                          styles.typeChip, 
-                          { backgroundColor: getTransactionTypeColor(transaction.transactionType) }
+                          styles.typeChip,
+                          {
+                            backgroundColor: getTransactionTypeColor(
+                              transaction.transactionType
+                            ),
+                          },
                         ]}
                         textStyle={styles.typeChipText}
                       >
@@ -318,7 +326,9 @@ export const AdminTransactionsScreen = () => {
 
         {getFilteredTransactions().length === 0 && !loading && (
           <View style={styles.emptyState}>
-            <Text>Tidak ada transaksi {activeFilter !== "all" ? activeFilter : ""}</Text>
+            <Text>
+              Tidak ada transaksi {activeFilter !== "all" ? activeFilter : ""}
+            </Text>
           </View>
         )}
       </ScrollView>
@@ -341,7 +351,11 @@ export const AdminTransactionsScreen = () => {
             <Card.Title
               title={`Transaksi #${selectedTransaction.id}`}
               titleStyle={styles.modalTitle}
-              subtitle={`Oleh: ${selectedTransaction.nama} (${getTransactionTypeLabel(selectedTransaction.transactionType)})`}
+              subtitle={`Oleh: ${
+                selectedTransaction.nama
+              } (${getTransactionTypeLabel(
+                selectedTransaction.transactionType
+              )})`}
               subtitleStyle={styles.modalSubtitle}
             />
 
@@ -425,17 +439,23 @@ export const AdminTransactionsScreen = () => {
                 <View style={styles.detailSection}>
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Tipe Transaksi:</Text>
-                    <Chip 
+                    <Chip
                       style={[
-                        styles.typeChipDetail, 
-                        { backgroundColor: getTransactionTypeColor(selectedTransaction.transactionType) }
+                        styles.typeChipDetail,
+                        {
+                          backgroundColor: getTransactionTypeColor(
+                            selectedTransaction.transactionType
+                          ),
+                        },
                       ]}
                       textStyle={styles.typeChipTextDetail}
                     >
-                      {getTransactionTypeLabel(selectedTransaction.transactionType)}
+                      {getTransactionTypeLabel(
+                        selectedTransaction.transactionType
+                      )}
                     </Chip>
                   </View>
-                  
+
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Tanggal:</Text>
                     <Text style={styles.detailValue}>
@@ -493,24 +513,35 @@ export const AdminTransactionsScreen = () => {
                     const imageUrl = item?.image; // Ambil URL gambar dari produk yang diedit
 
                     // Periksa apakah imageUrl ada sebelum mencoba melakukan split
-                    const fileId = imageUrl && typeof imageUrl === 'string'
-                      ? imageUrl.split("/file/d/")[1]?.split("/")[0]
-                      : null;
+                    const fileId =
+                      imageUrl && typeof imageUrl === "string"
+                        ? imageUrl.split("/file/d/")[1]?.split("/")[0]
+                        : null;
 
                     // Format ulang URL jika fileId ada
                     const displayUrl = fileId
                       ? `https://drive.google.com/uc?export=view&id=${fileId}`
                       : null;
                     return (
-                      <View key={item.id || `item-${index}`} style={styles.itemCard}>
-                        {(displayUrl || item?.image) ? (
+                      <View
+                        key={item.id || `item-${index}`}
+                        style={styles.itemCard}
+                      >
+                        {displayUrl || item?.image ? (
                           <Image
                             source={{ uri: displayUrl || item?.image }}
                             style={styles.itemImage}
                           />
                         ) : (
-                          <View style={[styles.itemImage, styles.itemImagePlaceholder]}>
-                            <Text style={styles.itemImagePlaceholderText}>No Image</Text>
+                          <View
+                            style={[
+                              styles.itemImage,
+                              styles.itemImagePlaceholder,
+                            ]}
+                          >
+                            <Text style={styles.itemImagePlaceholderText}>
+                              No Image
+                            </Text>
                           </View>
                         )}
                         <View style={styles.itemInfo}>
@@ -520,7 +551,9 @@ export const AdminTransactionsScreen = () => {
                               {item.qty} × {formatCurrency(item.harga)}
                             </Text>
                             <Text style={styles.itemTotal}>
-                              {formatCurrency(item.totalHarga || (item.qty * item.harga))}
+                              {formatCurrency(
+                                item.totalHarga || item.qty * item.harga
+                              )}
                             </Text>
                           </View>
                         </View>
@@ -583,10 +616,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   headingContainer: {
-    flexDirection: 'column',
+    flexDirection: "column",
     gap: 4,
   },
   cardFooter: {
@@ -605,34 +638,34 @@ const styles = StyleSheet.create({
   filterContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: "#f0f0f0",
   },
   filterChip: {
     marginRight: 8,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
   },
   activeFilterChip: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: "#4CAF50",
   },
   activeFilterText: {
-    color: 'white',
+    color: "white",
   },
   typeChip: {
     height: 30,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     marginTop: 4,
   },
   typeChipText: {
     fontSize: 10,
-    color: 'white',
+    color: "white",
   },
   typeChipDetail: {
     height: 28,
   },
   typeChipTextDetail: {
-    color: 'white',
+    color: "white",
   },
   sectionTitle: {
     fontWeight: "bold",
@@ -691,8 +724,8 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: 14,
     fontWeight: "500",
-    maxWidth: '60%',
-    textAlign: 'right',
+    maxWidth: "60%",
+    textAlign: "right",
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -733,13 +766,13 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   itemImagePlaceholder: {
-    backgroundColor: '#e0e0e0',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#e0e0e0",
+    justifyContent: "center",
+    alignItems: "center",
   },
   itemImagePlaceholderText: {
     fontSize: 10,
-    color: '#666',
+    color: "#666",
   },
   itemInfo: {
     flex: 1,
@@ -849,7 +882,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     color: "#666",
-  }
+  },
 });
 
 export default AdminTransactionsScreen;

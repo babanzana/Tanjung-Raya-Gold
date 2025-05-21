@@ -99,10 +99,17 @@ export const WishlistScreen = ({ route, navigation }: any) => {
 
     return (
       <View style={styles.card}>
-        <Image
-          source={{ uri: displayUrl || item.image }}
-          style={styles.image}
-        />
+        {imageUrl ? (
+          <Image
+            source={{ uri: displayUrl || item.image }}
+            style={styles.image}
+          />
+        ) : (
+          <Image
+            source={require("../../../../assets/no_image.png")}
+            style={styles.image}
+          />
+        )}
         <View style={styles.details}>
           <Text style={styles.category}>{item.category}</Text>
           <Text style={styles.name}>{item.name}</Text>
